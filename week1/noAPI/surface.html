@@ -27,10 +27,13 @@
 
         vec3 ambientLight = vec3(0.2, 0.2, 0.0);
         vec3 directionalLightColor = vec3(1.0, 1.0, 1.0);
-        vec3 directionalVector = vec3(0.0, 5.0, 5.0);
+        vec3 directionalVector = vec3(0.0, 0.0, 5.0);
 
         vec3 transformedNormal = uNMatrix * aVertexNormal;
-        float directionalLightWeighting = max(dot(transformedNormal, directionalVector), 0.0);
+        float product = dot(transformedNormal, directionalVector);
+        if (product < 0.0) product *= -1.0;
+        float directionalLightWeighting = max(product, 0.0);
+        //float directionalLightWeighting = max(dot(transformedNormal, directionalVector), 0.0);
         vLightWeighting = ambientLight + directionalLightColor * directionalLightWeighting;
     }
 </script>
@@ -45,7 +48,7 @@
     void main(void) {
         //gl_FragColor = vColor;
         //gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
-        gl_FragColor = vec4(vec3(1.0, 1.0, 0.0) * vLightWeighting, 0.7);
+        gl_FragColor = vec4(vec3(1.0, 1.0, 0.0) * vLightWeighting, 1.0);
     }
 </script>
 
@@ -269,12 +272,12 @@
                 p3.push(vertices[(v+(gridX+1))*3+1]);
                 p3.push(vertices[(v+(gridX+1))*3+2]);
 
-                var n = calculateNormal(p1, p2, p3);
-                for (var t = 0; t < 4; t++) {
-                    vertexNormals.push(n[0]);
-                    vertexNormals.push(n[1]);
-                    vertexNormals.push(n[2]);
-                }
+                // var n = calculateNormal(p1, p2, p3);
+                // for (var t = 0; t < 4; t++) {
+                //     vertexNormals.push(n[0]);
+                //     vertexNormals.push(n[1]);
+                //     vertexNormals.push(n[2]);
+                // }
                 //console.log("%f, %f, %f\n", n[0], n[1], n[2]);
 
                 indices.push(v+1);
@@ -296,13 +299,13 @@
                 p3.push(vertices[(v+(gridX+1)+1)*3+1]);
                 p3.push(vertices[(v+(gridX+1)+1)*3+2]);
 
-                // n = calculateNormal(p1, p2, p3);
-                // for (var t = 0; t < 4; t++) {
-                //     vertexNormals.push(n[0]);
-                //     vertexNormals.push(n[1]);
-                //     vertexNormals.push(n[2]);
-                // }
-                //console.log("%f, %f, %f\n", n[0], n[1], n[2]);
+                n = calculateNormal(p1, p2, p3);
+                for (var t = 0; t < 4; t++) {
+                    vertexNormals.push(n[0]);
+                    vertexNormals.push(n[1]);
+                    vertexNormals.push(n[2]);
+                }
+                console.log("%f, %f, %f\n", n[0], n[1], n[2]);
 
                 v++;
             }
