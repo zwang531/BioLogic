@@ -27,13 +27,13 @@
 
         vec3 ambientLight = vec3(0.2, 0.2, 0.0);
         vec3 directionalLightColor = vec3(1.0, 1.0, 1.0);
-        vec3 directionalVector = vec3(0.0, 0.0, 5.0);
+        vec3 directionalVector = vec3(0.0, 0.0, -1.0);
 
         vec3 transformedNormal = uNMatrix * aVertexNormal;
-        float product = dot(transformedNormal, directionalVector);
-        if (product < 0.0) product *= -1.0;
-        float directionalLightWeighting = max(product, 0.0);
-        //float directionalLightWeighting = max(dot(transformedNormal, directionalVector), 0.0);
+        // float product = dot(transformedNormal, directionalVector);
+        // if (product < 0.0) product *= -1.0;
+        // float directionalLightWeighting = max(product, 0.0);
+        float directionalLightWeighting = max(dot(transformedNormal, directionalVector), 0.0);
         vLightWeighting = ambientLight + directionalLightColor * directionalLightWeighting;
     }
 </script>
@@ -215,7 +215,7 @@
         var planeX = 2.0;
         var planeZ = 2.0;
         var height = 0.0;
-        vertices = [];
+        var vertices = [];
         for (var z = -planeZ/2; z <= planeZ/2; z += planeZ/gridZ) {
             height = 0.0;
             for (var x = -planeX/2; x <= planeX/2; x += planeX/gridX) {
@@ -272,40 +272,40 @@
                 p3.push(vertices[(v+(gridX+1))*3+1]);
                 p3.push(vertices[(v+(gridX+1))*3+2]);
 
-                // var n = calculateNormal(p1, p2, p3);
-                // for (var t = 0; t < 4; t++) {
-                //     vertexNormals.push(n[0]);
-                //     vertexNormals.push(n[1]);
-                //     vertexNormals.push(n[2]);
-                // }
+                var n = calculateNormal(p1, p3, p2);
+                for (var t = 0; t < 4; t++) {
+                    vertexNormals.push(n[0]);
+                    vertexNormals.push(n[1]);
+                    vertexNormals.push(n[2]);
+                }
                 //console.log("%f, %f, %f\n", n[0], n[1], n[2]);
 
                 indices.push(v+1);
                 indices.push(v+(gridX+1));
                 indices.push(v+(gridX+1)+1);
 
-                p1 = [];
-                p1.push(vertices[(v+1)*3]);
-                p1.push(vertices[(v+1)*3+1]);
-                p1.push(vertices[(v+1)*3+2]);
+                // p1 = [];
+                // p1.push(vertices[(v+1)*3]);
+                // p1.push(vertices[(v+1)*3+1]);
+                // p1.push(vertices[(v+1)*3+2]);
 
-                p2 = [];
-                p2.push(vertices[(v+(gridX+1))*3]);
-                p2.push(vertices[(v+(gridX+1))*3+1]);
-                p2.push(vertices[(v+(gridX+1))*3+2]);
+                // p2 = [];
+                // p2.push(vertices[(v+(gridX+1))*3]);
+                // p2.push(vertices[(v+(gridX+1))*3+1]);
+                // p2.push(vertices[(v+(gridX+1))*3+2]);
 
-                p3 = [];
-                p3.push(vertices[(v+(gridX+1)+1)*3]);
-                p3.push(vertices[(v+(gridX+1)+1)*3+1]);
-                p3.push(vertices[(v+(gridX+1)+1)*3+2]);
+                // p3 = [];
+                // p3.push(vertices[(v+(gridX+1)+1)*3]);
+                // p3.push(vertices[(v+(gridX+1)+1)*3+1]);
+                // p3.push(vertices[(v+(gridX+1)+1)*3+2]);
 
-                n = calculateNormal(p1, p2, p3);
-                for (var t = 0; t < 4; t++) {
-                    vertexNormals.push(n[0]);
-                    vertexNormals.push(n[1]);
-                    vertexNormals.push(n[2]);
-                }
-                console.log("%f, %f, %f\n", n[0], n[1], n[2]);
+                // n = calculateNormal(p2, p1, p3);
+                // for (var t = 0; t < 4; t++) {
+                //     vertexNormals.push(n[0]);
+                //     vertexNormals.push(n[1]);
+                //     vertexNormals.push(n[2]);
+                // }
+                //console.log("%f, %f, %f\n", n[0], n[1], n[2]);
 
                 v++;
             }
@@ -357,7 +357,7 @@
         mvPushMatrix();
 
         mat4.translate(mvMatrix, [0.0, -0.5, -5.0]);
-        mat4.rotate(mvMatrix, degToRed(rSquare), [1, 0, 0]); 
+        mat4.rotate(mvMatrix, degToRed(rSquare), [0, 1, 0]); 
 
         gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, squareVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);

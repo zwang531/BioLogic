@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>BioLogic Project</title>
+<meta charset="utf-8">
+
+<script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+
+ <script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vColor = aVertexColor;
+    }
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_FragColor = vColor;
+    }
+</script>
+
+<script type="text/javascript">
+
+var gl;
+function initGL(canvas) {
+	try {
+		gl = canvas.getContext("experimental-webgl");
+		gl.viewportWidth = canvas.width;
+		gl.viewportHeight = canvas.height;
+	} catch (e) {
+
+	}
+	if (!gl) {
+		alert("Could not initialize WebGL, sorry :-(");
+	}
+}
+
+function getShader(gl, id) {
+    var shaderScript = document.getElementById(id);
+    if (!shaderScript) {
+        return null;
+    }
+
+    var str = "";
+    var k = shaderScript.firstChild;
+    while (k) {
+        if (k.nodeType == 3) {
+            str += k.textContent;
+        }
+        k = k.nextSibling;
+    }
+
+    var shader;
+    if (shaderScript.type == "x-shader/x-fragment") {
+        shader = gl.createShader(gl.FRAGMENT_SHADER);
+    } else if (shaderScript.type == "x-shader/x-vertex") {
+        shader = gl.createShader(gl.VERTEX_SHADER);
+    } else {
+        return null;
+    }
+
+    gl.shaderSource(shader, str);
+    gl.compileShader(shader);
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert(gl.getShaderInfoLog(shader));
+        return null;
+    }
+
+    return shader;
+}
+
+var shaderProgram;
+function initShaders() {
+	var vertexShader = getShader(gl, "shader-vs");
+	var fragmentShader = getShader(gl, "shader-fs");
+
+    shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        alert("Could not initialize shaders");
+    }
+
+    gl.useProgram(shaderProgram);
+
+    shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+    shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+    gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+
+    shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+    shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+}
+
+var mvMatrix = mat4.create();
+var pMatrix = mat4.create();
+var mvMatrixStack = [];
+function mvPushMatrix() {
+	var copy = mat4.create();
+    mat4.set(mvMatrix, copy);
+    mvMatrixStack.push(copy);
+}
+function mvPopMatrix() {
+    if (mvMatrixStack.length == 0) {
+        throw "Invalid PopMatrix!";
+    }
+    mvMatrix = mvMatrixStack.pop();
+}
+
+function setMatrixUniforms() {
+    gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+}
+
+var gridX = 20;
+var gridZ = 20;
+var lengthX = 1.0;
+var lengthZ = 1.0;
+var halfLenX = lengthX / 2.0;
+var halfLenZ = lengthZ / 2.0;
+
+var planeVertexPositionBuffer;
+var planeVertexColorBuffer;
+var planeIndexBuffer;
+function initPlaneBuffers() {
+	planeVertexPositionBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
+	var vertices = [];
+	var diffX = lengthX / (gridX*1.0);
+	var diffZ = lengthZ / (gridZ*1.0);
+	for (var z = -halfLenZ; z <= halfLenZ; z += diffZ) {
+		for (var x = -halfLenX; x <= halfLenX; x += diffX) {
+			var tmp = x + halfLenX;
+			var y = tmp * tmp / 5.0;
+			vertices.push(x);
+			vertices.push(y);
+			vertices.push(z);
+		}
+	}
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	planeVertexPositionBuffer.itemSize = 3;
+	planeVertexPositionBuffer.numItems = (gridX + 1) * (gridZ + 1); 
+
+	planeVertexColorBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexColorBuffer);
+	var colors = [];
+	for (var i = 0; i < planeVertexPositionBuffer.numItems; i++)
+        colors = colors.concat([1.0, 1.0, 0.0, 1.0]);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+	planeVertexColorBuffer.itemSize = 4;
+	planeVertexColorBuffer.numItems = (gridX + 1) * (gridZ + 1); 
+
+	planeIndexBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
+	var indices = [];
+	var v = 0;
+	for (var i = 0; i < gridZ; i++) {
+		for (var j = 0; j < gridX; j++) {
+			indices.push(v);
+			indices.push(v+1);
+			indices.push(v+(gridX+1));
+			//console.log("%d, %d, %d\n", v, v+1, v+(gridX+1));
+
+			indices.push(v+1);
+            indices.push(v+(gridX+1));
+            indices.push(v+(gridX+1)+1);
+            //console.log("%d, %d, %d\n", v+1, v+(gridX+1), v+(gridX+1)+1);
+
+            v++;
+		}
+		v++;
+	}
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+	planeIndexBuffer.itemSize = 1;
+	planeIndexBuffer.numItems = gridX * gridZ * 2 * 3; 
+}
+
+function drawPlane() {
+	initPlaneBuffers();
+
+	mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, planeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexColorBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, planeVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
+
+    setMatrixUniforms();
+    
+    gl.drawElements(gl.TRIANGLES, planeIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    mvPopMatrix();
+}
+
+var latitudeBands = 30;
+var longitudeBands = 30;
+var radius = 0.1;
+
+var ballVertexPositionBuffer;
+var ballVertexColorBuffer;
+var ballIndexBuffer;
+function initBallBuffers() {
+	var vertices = [];
+	for (var latNum = 0; latNum <= latitudeBands; latNum++) {
+		var theta = latNum * Math.PI / latitudeBands;
+        var sinTheta = Math.sin(theta);
+        var cosTheta = Math.cos(theta);
+
+        for (var longNum = 0; longNum <= longitudeBands; longNum++) {
+        	var phi = longNum * 2 * Math.PI / longitudeBands;
+            var sinPhi = Math.sin(phi);
+            var cosPhi = Math.cos(phi);
+
+            var x = radius * cosPhi * sinTheta;
+            var y = radius * cosTheta;
+            var z = radius * sinPhi * sinTheta;
+
+            vertices.push(x);
+            vertices.push(y);
+            vertices.push(z);
+        }
+	}
+
+	var indices = [];
+	for (var latNum = 0; latNum < latitudeBands; latNum++) {
+        for (var longNum = 0; longNum < longitudeBands; longNum++) {
+        	var first = (latNum * (longitudeBands + 1)) + longNum;
+            var second = first + longitudeBands + 1;
+
+            indices.push(first);
+            indices.push(second);
+            indices.push(first + 1);
+            //console.log("%d, %d, %d\n", first, second, first + 1);
+
+            indices.push(second);
+            indices.push(second + 1);
+            indices.push(first + 1);
+            //console.log("%d, %d, %d\n", second, second + 1, first + 1);
+        }
+	}
+
+	ballVertexPositionBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexPositionBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	ballVertexPositionBuffer.itemSize = 3;
+	ballVertexPositionBuffer.numItems = vertices.length / 3;
+	//console.log("%d\n", ballVertexPositionBuffer.numItems);
+
+	ballVertexColorBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexColorBuffer);
+	var colors = [];
+	for (var i = 0; i < ballVertexPositionBuffer.numItems; i++)
+        colors = colors.concat([0.0, 1.0, 0.0, 1.0]);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+	ballVertexColorBuffer.itemSize = 4;
+	ballVertexColorBuffer.numItems = ballVertexPositionBuffer.numItems;
+
+	ballIndexBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ballIndexBuffer);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+	ballIndexBuffer.itemSize = 1;
+	ballIndexBuffer.numItems = indices.length;
+	//console.log("%d\n", indices.length);
+}
+
+function drawBall() {
+	initBallBuffers();
+
+	mvPushMatrix();
+
+	mat4.translate(mvMatrix, [-halfLenX+radius, radius, halfLenZ-radius]);
+	mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, ballVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexColorBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, ballVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ballIndexBuffer);
+
+    setMatrixUniforms();
+    
+    gl.drawElements(gl.TRIANGLES, ballIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+	mvPopMatrix();
+}
+
+function webGLStart() {
+	var canvas = document.getElementById("myCanvas");
+	initGL(canvas);
+	initShaders();
+
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.enable(gl.DEPTH_TEST);
+
+	gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 1000.0, pMatrix);
+
+    mat4.identity(mvMatrix);
+
+	drawPlane();
+
+	drawBall();
+}
+
+</script>
+
+</head>
+
+<body onload="webGLStart();">
+
+<canvas id="myCanvas" style="padding: 0; margin: auto; display: block; position: absolute; top: 0; bottom: 0; left: 0; right: 0;" width="800" height="500"></canvas>
+
+</body>
+
+</html>
