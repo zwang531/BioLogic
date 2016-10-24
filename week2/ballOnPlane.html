@@ -7,6 +7,7 @@
 <meta charset="utf-8">
 
 <script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
 
  <script id="shader-vs" type="x-shader/x-vertex">
     attribute vec3 aVertexPosition;
@@ -130,12 +131,85 @@ function setMatrixUniforms() {
     gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
 }
 
-var gridX = 20;
-var gridZ = 20;
+function degToRad(degrees) {
+    return degrees * Math.PI / 180;
+}
+
+var gridX = 30;
+var gridZ = 30;
 var lengthX = 1.0;
 var lengthZ = 1.0;
 var halfLenX = lengthX / 2.0;
 var halfLenZ = lengthZ / 2.0;
+
+var mouseDown = false;
+var lastMouseX = null;
+var lastMouseY = null;
+
+var mvRotationMatrix = mat4.create();
+mat4.identity(mvRotationMatrix);
+
+function handleMouseDown(event) {
+	mouseDown = true;
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+}
+
+function handleMouseUp(event) {
+	mouseDown = false;
+}
+
+function handleMouseMove(event) {
+	if (!mouseDown) {
+        return;
+    }
+
+    var newX = event.clientX;
+    var newY = event.clientY;
+
+    var deltaX = newX - lastMouseX;
+
+    var newRotationMatrix = mat4.create();
+    mat4.identity(newRotationMatrix);
+    mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
+
+    var deltaY = newY - lastMouseY;
+    mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
+    mat4.multiply(newRotationMatrix, mvRotationMatrix, mvRotationMatrix);
+
+    lastMouseX = newX
+    lastMouseY = newY;
+}
+
+var ballRelativeX = 0.0;
+var ballRelativeY = 0.0;
+var ballRelativeZ = 0.0;
+
+function handleKeyDown(event) {
+	//alert(event.keyCode);
+
+	if (event.keyCode == 82) {
+		mat4.identity(mvRotationMatrix);
+    }
+    else if (event.keyCode == 37) {
+    	if (ballRelativeX > radius) {
+    		ballRelativeX -= lengthX / gridX;
+    		ballRelativeY = ballRelativeX * ballRelativeX / 5.0;
+    	}
+    }
+    else if (event.keyCode == 39) {
+    	if (ballRelativeX < lengthX-radius) {
+    		ballRelativeX += lengthX / gridX;
+    		ballRelativeY = ballRelativeX * ballRelativeX / 5.0;
+    	}
+    }
+    else if (event.keyCode == 38) {
+    	ballRelativeZ -= lengthZ / gridZ;
+    }
+    else if (event.keyCode == 40) {
+		ballRelativeZ += lengthZ / gridZ;
+    }
+}
 
 var planeVertexPositionBuffer;
 var planeVertexColorBuffer;
@@ -144,12 +218,12 @@ function initPlaneBuffers() {
 	planeVertexPositionBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
 	var vertices = [];
-	var diffX = lengthX / (gridX*1.0);
-	var diffZ = lengthZ / (gridZ*1.0);
+	var diffX = lengthX / gridX;
+	var diffZ = lengthZ / gridZ;
 	for (var z = -halfLenZ; z <= halfLenZ; z += diffZ) {
 		for (var x = -halfLenX; x <= halfLenX; x += diffX) {
 			var tmp = x + halfLenX;
-			var y = tmp * tmp / 5.0;
+			var y = tmp * tmp / 5.2;
 			vertices.push(x);
 			vertices.push(y);
 			vertices.push(z);
@@ -193,30 +267,8 @@ function initPlaneBuffers() {
 	planeIndexBuffer.numItems = gridX * gridZ * 2 * 3; 
 }
 
-function drawPlane() {
-	initPlaneBuffers();
-
-	mvPushMatrix();
-
-    mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, planeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexColorBuffer);
-    gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, planeVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
-
-    setMatrixUniforms();
-    
-    gl.drawElements(gl.TRIANGLES, planeIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-
-    mvPopMatrix();
-}
-
-var latitudeBands = 30;
-var longitudeBands = 30;
+var latitudeBands = 20;
+var longitudeBands = 20;
 var radius = 0.1;
 
 var ballVertexPositionBuffer;
@@ -286,13 +338,45 @@ function initBallBuffers() {
 	//console.log("%d\n", indices.length);
 }
 
-function drawBall() {
+function initBuffers() {
+	initPlaneBuffers();
+
 	initBallBuffers();
+}
+
+function drawPlane() {
+	//initPlaneBuffers();
 
 	mvPushMatrix();
 
-	mat4.translate(mvMatrix, [-halfLenX+radius, radius, halfLenZ-radius]);
-	mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
+    mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
+    mat4.multiply(mvMatrix, mvRotationMatrix);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, planeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexColorBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, planeVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
+
+    setMatrixUniforms();
+    
+    gl.drawElements(gl.TRIANGLES, planeIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    //mvPopMatrix();
+}
+
+function drawBall() {
+	//initBallBuffers();
+
+	//mvPushMatrix();
+
+	mat4.translate(mvMatrix, [-halfLenX, radius, halfLenZ-radius]);
+	//mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
+	//mat4.multiply(mvMatrix, mvRotationMatrix);
+
+	mat4.translate(mvMatrix, [ballRelativeX, ballRelativeY, ballRelativeZ]);
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexPositionBuffer);
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, ballVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -309,11 +393,7 @@ function drawBall() {
 	mvPopMatrix();
 }
 
-function webGLStart() {
-	var canvas = document.getElementById("myCanvas");
-	initGL(canvas);
-	initShaders();
-
+function drawScene() {
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.enable(gl.DEPTH_TEST);
 
@@ -324,9 +404,30 @@ function webGLStart() {
 
     mat4.identity(mvMatrix);
 
-	drawPlane();
+    drawPlane();
 
 	drawBall();
+}
+
+function tick() {
+	requestAnimFrame(tick);
+
+	drawScene();
+}
+
+function webGLStart() {
+	var canvas = document.getElementById("myCanvas");
+	initGL(canvas);
+	initShaders();
+	initBuffers();
+
+	canvas.onmousedown = handleMouseDown;
+    document.onmouseup = handleMouseUp;
+    document.onmousemove = handleMouseMove;
+
+    document.onkeydown = handleKeyDown;
+
+	tick();
 }
 
 </script>
@@ -335,7 +436,7 @@ function webGLStart() {
 
 <body onload="webGLStart();">
 
-<canvas id="myCanvas" style="padding: 0; margin: auto; display: block; position: absolute; top: 0; bottom: 0; left: 0; right: 0;" width="800" height="500"></canvas>
+<canvas id="myCanvas" style="padding: 0; margin: auto; display: block; position: absolute; top: 0; bottom: 0; left: 0; right: 0;" width="800" height="400"></canvas>
 
 </body>
 
