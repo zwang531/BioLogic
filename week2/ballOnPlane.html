@@ -137,7 +137,7 @@ function degToRad(degrees) {
 
 var gridX = 30;
 var gridZ = 30;
-var lengthX = 1.0;
+var lengthX = 2.0;
 var lengthZ = 1.0;
 var halfLenX = lengthX / 2.0;
 var halfLenZ = lengthZ / 2.0;
@@ -183,7 +183,23 @@ function handleMouseMove(event) {
 
 var ballRelativeX = 0.0;
 var ballRelativeY = 0.0;
-var ballRelativeZ = 0;
+var ballRelativeZ = 0.0;
+
+var colorThemes = [
+	[0.92, 0.55, 0.0,  1.0], 
+	[0.86, 0.41, 0.0,  1.0],
+	[0.88, 0.19, 0.12, 1.0],
+	[0.86, 0.33, 0.42, 1.0],
+	[0.64, 0.13, 0.13, 1.0],
+	[0.38, 0.14, 0.13, 1.0],
+	[0.59, 0.55, 0.43, 1.0],
+	[0.43, 0.43, 0.44, 1.0]
+]; 
+
+var planeColorSwitch = colorThemes.length-1;
+var ballColorSwitch = 0;
+var updatePlaneColor = false;
+var updateBallColor = false;
 
 function handleKeyDown(event) {
 	//alert(event.keyCode);
@@ -198,7 +214,7 @@ function handleKeyDown(event) {
     	}
     }
     else if (event.keyCode == 39) {
-    	if (ballRelativeX < lengthX-radius) {
+    	if (ballRelativeX < lengthX-radius-lengthX / gridX) {
     		ballRelativeX += lengthX / gridX;
     		ballRelativeY = ballRelativeX * ballRelativeX / 5.0;
     	}
@@ -208,8 +224,22 @@ function handleKeyDown(event) {
     		ballRelativeZ -= lengthZ / gridZ;
     }
     else if (event.keyCode == 40) {
-    	if (ballRelativeZ+lengthZ < lengthZ)
+    	if (ballRelativeZ < 0-lengthZ / gridZ)
 			ballRelativeZ += lengthZ / gridZ;
+    }
+    else if (event.keyCode == 66) { // ball color switch
+    	updateBallColor = true;
+    	if (ballColorSwitch == colorThemes.length - 1)
+    		ballColorSwitch = 0;
+    	else
+    		ballColorSwitch++;
+    }
+    else if (event.keyCode == 71) { // plane color switch
+    	updatePlaneColor = true;
+    	if (planeColorSwitch == 0)
+    		planeColorSwitch = colorThemes.length-1;
+    	else
+    		planeColorSwitch--;
     }
 }
 
@@ -239,7 +269,7 @@ function initPlaneBuffers() {
 	gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexColorBuffer);
 	var colors = [];
 	for (var i = 0; i < planeVertexPositionBuffer.numItems; i++)
-        colors = colors.concat([1.0, 1.0, 0.0, 1.0]);
+        colors = colors.concat(colorThemes[planeColorSwitch]); 
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 	planeVertexColorBuffer.itemSize = 4;
 	planeVertexColorBuffer.numItems = (gridX + 1) * (gridZ + 1); 
@@ -269,8 +299,8 @@ function initPlaneBuffers() {
 	planeIndexBuffer.numItems = gridX * gridZ * 2 * 3; 
 }
 
-var latitudeBands = 20;
-var longitudeBands = 20;
+var latitudeBands = 50;
+var longitudeBands = 50;
 var radius = 0.1;
 
 var ballVertexPositionBuffer;
@@ -327,7 +357,7 @@ function initBallBuffers() {
 	gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexColorBuffer);
 	var colors = [];
 	for (var i = 0; i < ballVertexPositionBuffer.numItems; i++)
-        colors = colors.concat([0.0, 1.0, 0.0, 1.0]);
+        colors = colors.concat(colorThemes[ballColorSwitch]);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 	ballVertexColorBuffer.itemSize = 4;
 	ballVertexColorBuffer.numItems = ballVertexPositionBuffer.numItems;
@@ -349,9 +379,19 @@ function initBuffers() {
 function drawPlane() {
 	//initPlaneBuffers();
 
+	if (updatePlaneColor) {
+		gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexColorBuffer);
+		var colors = [];
+		for (var i = 0; i < planeVertexPositionBuffer.numItems; i++)
+	        colors = colors.concat(colorThemes[planeColorSwitch]); 
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+		updatePlaneColor = false;
+	}
+
 	mvPushMatrix();
 
-    mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
+    mat4.translate(mvMatrix, [-0.1, -0.2, -2.0]);
     mat4.multiply(mvMatrix, mvRotationMatrix);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
@@ -373,6 +413,16 @@ function drawBall() {
 	//initBallBuffers();
 
 	//mvPushMatrix();
+
+	if (updateBallColor) {
+		gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexColorBuffer);
+		var colors = [];
+		for (var i = 0; i < ballVertexPositionBuffer.numItems; i++)
+	        colors = colors.concat(colorThemes[ballColorSwitch]);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+		updateBallColor = false;
+	}
 
 	mat4.translate(mvMatrix, [-halfLenX, radius, halfLenZ-radius]);
 	//mat4.translate(mvMatrix, [0.0, -0.2, -2.0]);
@@ -437,8 +487,8 @@ function webGLStart() {
 </head>
 
 <body onload="webGLStart();">
-
-<canvas id="myCanvas" style="padding: 0; margin: auto; display: block; position: absolute; top: 0; bottom: 0; left: 0; right: 0;" width="800" height="400"></canvas>
+<p style="text-align: center;"><b>mouse hold and drag</b> - rotate the scene, <b>'r'</b> - reset the plane<br><b>'g'</b> - change the color of the plane, <b>'b'</b> - change the color of the ball<br><b>left, right, up, down arrows</b> - move the ball on the plane</p>
+<canvas id="myCanvas" style="padding: 0; margin: auto; display: block; position: absolute; top: 0; bottom: 0; left: 0; right: 0;" width="1200" height="600"></canvas>
 
 </body>
 
