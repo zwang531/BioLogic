@@ -6,8 +6,8 @@
 <title>BioLogic Project</title>
 <meta charset="utf-8">
 
-<script type="text/javascript" src="/lib/glMatrix-0.9.5.min.js"></script>
-<script type="text/javascript" src="/lib/webgl-utils.js"></script>
+<script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">
     precision mediump float;
@@ -197,7 +197,7 @@ function degToRad(degrees) {
 
 var gridX = 30;
 var gridZ = 30;
-var lengthX = 2.0;
+var lengthX = 2.25;
 var lengthZ = 1.0;
 var halfLenX = lengthX / 2.0;
 var halfLenZ = lengthZ / 2.0;
@@ -236,8 +236,23 @@ function handleMouseMove(event) {
     //mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
 
     var deltaY = newY - lastMouseY;
-    mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
-    mat4.multiply(newRotationMatrix, mvRotationMatrix, mvRotationMatrix);
+
+    if (rAngle <= 600 && rAngle >= 0) {
+        if (rAngle + deltaY > 600) {
+            deltaY = 600 - rAngle;
+            rAngle = 600;
+        }
+        else if (rAngle + deltaY < 0) {
+            deltaY = 0 - rAngle;
+            rAngle = 0;
+        }
+        else {
+            rAngle += deltaY;
+        }
+
+        mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
+        mat4.multiply(newRotationMatrix, mvRotationMatrix, mvRotationMatrix);
+    }
 
     lastMouseX = newX
     lastMouseY = newY;
@@ -252,6 +267,8 @@ var ballColorSwitch = 0;
 
 var bmi;
 
+var dialX = 0;
+
 function handleKeyDown(event) {
     //alert(event.keyCode);
 
@@ -260,21 +277,30 @@ function handleKeyDown(event) {
 
     if (event.keyCode == 82) {
         mat4.identity(mvRotationMatrix);
+        rAngle = 0;
     }
     else if (event.keyCode == 37) {
         if (ballRelativeX > radius-diffX) {
             ballRelativeX -= diffX;
             ballRelativeY = ballRelativeX * ballRelativeX / 5.0;
+
             bmi = parseFloat(bmi)+1.0;
             document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
+
+            dialX--;
+            if (dialX < 0) dialX = 0;
         }
     }
     else if (event.keyCode == 39) {
         if (ballRelativeX < lengthX-radius) {
             ballRelativeX += diffX;
             ballRelativeY = ballRelativeX * ballRelativeX / 5.0;
+
             bmi = parseFloat(bmi)-1.0;
             document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
+
+            dialX++;
+            if (dialX > 30) dialX = 30;
         }
     }
     else if (event.keyCode == 38) {
@@ -358,7 +384,7 @@ function initPlaneBuffers() {
     }
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
     planeVertexPositionBuffer.itemSize = 3;
-    planeVertexPositionBuffer.numItems = gridX * gridZ * 4; 
+    planeVertexPositionBuffer.numItems = vertices.length / 3; 
 
     // planeVertexColorBuffer = gl.createBuffer();
     // gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexColorBuffer);
@@ -390,7 +416,7 @@ function initPlaneBuffers() {
     }
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
     planeIndexBuffer.itemSize = 1;
-    planeIndexBuffer.numItems = gridX * gridZ * 2 * 3; 
+    planeIndexBuffer.numItems = indices.length; 
 }
 
 var latitudeBands = 50;
@@ -526,7 +552,7 @@ function initScaleBarBuffers() {
     gl.bindBuffer(gl.ARRAY_BUFFER, scaleBarVertexPositionBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
     scaleBarVertexPositionBuffer.itemSize = 3;
-    scaleBarVertexPositionBuffer.numItems = gridX * 4;
+    scaleBarVertexPositionBuffer.numItems = vertices.length / 3;
 
     scaleBarVertexNormalBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, scaleBarVertexNormalBuffer);
@@ -538,15 +564,16 @@ function initScaleBarBuffers() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scaleBarIndexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
     scaleBarIndexBuffer.itemSize = 1;
-    scaleBarIndexBuffer.numItems = gridX * 6;
+    scaleBarIndexBuffer.numItems = indices.length;
 }
 
 var markerVertexPositionBuffer;
 function initMarkerBuffers() {
-    var vertices = [];
     var halfW = scaleBarWidth / 2;
     var halfH = scaleBarHeight / 2;
     var diffW = scaleBarWidth / gridX;
+
+    var vertices = [];
     for (var x = -halfW; x <= halfW; x += diffW) {
         vertices.push(x);
         vertices.push(halfH);
@@ -564,6 +591,52 @@ function initMarkerBuffers() {
     markerVertexPositionBuffer.numItems = vertices.length / 3;
 }
 
+var dialVertexPositionBuffer;
+var dialVertexNormalBuffer;
+var dialIndexBuffer;
+function initDialBuffers() {
+    var diffW = scaleBarWidth / gridX;
+    var halfW = diffW / 3;
+    var halfH = scaleBarHeight / 3;
+
+    var vertices = [];
+    vertices.push(-halfW);
+    vertices.push(halfH);
+    vertices.push(scaleBarZ);
+
+    vertices.push(0.0);
+    vertices.push(-halfH);
+    vertices.push(scaleBarZ);
+
+    vertices.push(halfW);
+    vertices.push(halfH);
+    vertices.push(scaleBarZ);
+
+    var normals = [];
+    for (var i = 0; i < 3; i++) 
+        normals = normals.concat([0.0, 0.0, 1.0]);
+
+    var indices = [ 0, 1, 2 ];
+
+    dialVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    dialVertexPositionBuffer.itemSize = 3;
+    dialVertexPositionBuffer.numItems = vertices.length / 3;
+
+    dialVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+    dialVertexNormalBuffer.itemSize = 3;
+    dialVertexNormalBuffer.numItems = normals.length / 3;
+
+    dialIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dialIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    dialIndexBuffer.itemSize = 1;
+    dialIndexBuffer.numItems = indices.length;
+}
+
 function initBuffers() {
     initPlaneBuffers();
 
@@ -572,6 +645,8 @@ function initBuffers() {
     initScaleBarBuffers();
 
     initMarkerBuffers();
+
+    initDialBuffers();
 }
 
 function drawPlane() {
@@ -581,7 +656,7 @@ function drawPlane() {
 
     lighting = true;
 
-    mat4.translate(mvMatrix, [-0.08, -0.3, -3.0]);
+    mat4.translate(mvMatrix, [-0.08, -0.3, -2.5]);
     mat4.multiply(mvMatrix, mvRotationMatrix);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
@@ -655,9 +730,7 @@ function drawScaleBar() {
 function drawMarker() {
     //mvPushMatrix();
 
-    lighting = false;
-
-    mat4.translate(mvMatrix, [0.0, 0.0, 0.01]);
+    mat4.translate(mvMatrix, [0.07, 0.0, 0.001]);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, markerVertexPositionBuffer);
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, markerVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -665,6 +738,27 @@ function drawMarker() {
     setMatrixUniforms();
 
     gl.drawArrays(gl.LINES, 0, markerVertexPositionBuffer.numItems);
+
+    //mvPopMatrix();
+}
+
+function drawDial() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [dialX*scaleBarWidth/gridX-scaleBarWidth/2, scaleBarHeight-0.017, 0.001]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, dialVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, dialVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dialIndexBuffer);
+
+    object = 1;
+    setMatrixUniforms();
+
+    gl.drawElements(gl.TRIANGLES, dialIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 
     mvPopMatrix();
 }
@@ -686,7 +780,11 @@ function drawScene() {
 
     drawScaleBar();
 
+    lighting = false;
     drawMarker();
+    lighting = true;
+
+    drawDial();
 }
 
 function tick() {
