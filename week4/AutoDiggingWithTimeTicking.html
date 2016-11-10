@@ -114,6 +114,8 @@ var ballRelativeX = 0.0;
 var ballRelativeY = 0.0;
 var ballRelativeZ = 0.0;
 
+var ballLocationIndex = 0;
+
 // var useTexture;
 // var bmiTexture;
 
@@ -182,6 +184,9 @@ var dialX = 0;
 
 var bmi;
 
+var lastTime = 0;
+var idleTick = 0;
+
 function degToRad(degrees) {
     return degrees * Math.PI / 180;
 }
@@ -242,31 +247,36 @@ function handleKeyDown(event) {
     if (event.keyCode == 82) {
         // mat4.identity(mvRotationMatrix);
         // rAngle = 0;
+        //console.log(idleTick);
     }
     else if (event.keyCode == 68) {
         //console.log(Math.floor(ballRelativeX/diffX+0.01));
-        if (ballRelativeX >= diffX) {
-            var index = Math.floor(ballRelativeX/diffX+0.01);
-            if (!(index > 0 && trenchLocations[index] == 1 && trenchLocations[index-1] == 1)) {
-                var offset = trenchDepthScale*Math.cos(Math.PI);
-                ballRelativeY += offset;
-            }
-            for (var i = 0; i < planeGridX; i++) {
-                trenchLocations[i] = 0;
-            }
-            trenchLocations[index-1] = 1;
-            trenchLocations[index] = 1;
-        }
+        // if (ballRelativeX >= diffX) {
+        //     var index = Math.floor(ballRelativeX/diffX+0.01);
+        //     if (!(index > 0 && trenchLocations[index] == 1 && trenchLocations[index-1] == 1)) {
+        //         var offset = trenchDepthScale*Math.cos(Math.PI);
+        //         ballRelativeY += offset;
+        //     }
+        //     for (var i = 0; i < planeGridX; i++) {
+        //         trenchLocations[i] = 0;
+        //     }
+        //     trenchLocations[index-1] = 1;
+        //     trenchLocations[index] = 1;
+        // }
     }
     else if (event.keyCode == 37) {
+        idleTick = 0;
+        lastTime = 0;
         if (ballRelativeX > radius+diffX) {
             ballRelativeX -= diffX;
-            ballRelativeY = ballRelativeX * ballRelativeX / 7.7;
+            ballRelativeY = ballRelativeX * ballRelativeX / 7.85;
 
-            var index = Math.floor(ballRelativeX/diffX+0.01);
-            if (index > 0 && trenchLocations[index] == 1 && trenchLocations[index-1] == 1) {
-                var offset = trenchDepthScale*Math.cos(Math.PI);
-                ballRelativeY += offset;
+            ballLocationIndex = Math.floor(ballRelativeX/diffX+0.01);
+            if (ballLocationIndex > 0 && trenchLocations[ballLocationIndex] == 1 && trenchLocations[ballLocationIndex-1] == 1) {
+                if (ballLocationIndex-1 == 0 || trenchLocations[ballLocationIndex+1] == 0 || trenchLocations[ballLocationIndex-2] == 0) {
+                    var offset = trenchDepthScale*Math.cos(Math.PI);
+                    ballRelativeY += offset;
+                }
             }
 
             bmi = parseFloat(bmi)+1.0;
@@ -277,14 +287,18 @@ function handleKeyDown(event) {
         }
     }
     else if (event.keyCode == 39) {
+        idleTick = 0;
+        lastTime = 0;
         if (ballRelativeX <= planeLengthX-radius-diffX) {
             ballRelativeX += diffX;
-            ballRelativeY = ballRelativeX * ballRelativeX / 7.7;
+            ballRelativeY = ballRelativeX * ballRelativeX / 7.85;
 
-            var index = Math.floor(ballRelativeX/diffX+0.01);
-            if (index > 0 && trenchLocations[index] == 1 && trenchLocations[index-1] == 1) {
-                var offset = trenchDepthScale*Math.cos(Math.PI);
-                ballRelativeY += offset;
+            ballLocationIndex = Math.floor(ballRelativeX/diffX+0.01);
+            if (ballLocationIndex > 0 && trenchLocations[ballLocationIndex] == 1 && trenchLocations[ballLocationIndex-1] == 1) {
+                if (ballLocationIndex-1 == 0 || trenchLocations[ballLocationIndex+1] == 0 || trenchLocations[ballLocationIndex-2] == 0) {
+                    var offset = trenchDepthScale*Math.cos(Math.PI);
+                    ballRelativeY += offset;
+                }
             }
 
             bmi = parseFloat(bmi)-1.0;
@@ -1301,10 +1315,49 @@ function drawScene() {
     //drawBMILabel();
 }
 
+function animate() {
+    var timeNow = new Date().getTime();
+    if (lastTime != 0) {
+        var elapsed = timeNow - lastTime;
+
+        idleTick += elapsed / 1000;
+
+        if (idleTick > 5) {
+            if (ballLocationIndex > 0) {
+                if (trenchLocations[ballLocationIndex] == 0 || trenchLocations[ballLocationIndex-1] == 0) {
+                    var offset = trenchDepthScale*Math.cos(Math.PI);
+                    ballRelativeY += offset;
+                }
+                else if (trenchLocations[ballLocationIndex] == 1 && trenchLocations[ballLocationIndex-1] == 1 && trenchLocations[ballLocationIndex+1] == 1 && trenchLocations[ballLocationIndex-2] == 1) {
+                    var offset = trenchDepthScale*Math.cos(Math.PI);
+                    ballRelativeY += offset;
+                }
+
+                if (trenchLocations[ballLocationIndex] == 1 && trenchLocations[ballLocationIndex-1] == 1) {
+                    if (trenchLocations[ballLocationIndex+1] == 1 && trenchLocations[ballLocationIndex-2] == 1) {
+                        trenchLocations[ballLocationIndex+1] = 0;
+                        trenchLocations[ballLocationIndex-2] = 0;
+                    }
+                }
+                else if (trenchLocations[ballLocationIndex] == 1) {
+                    trenchLocations[ballLocationIndex+1] = 0;
+                }
+                else if (trenchLocations[ballLocationIndex-1] == 1) {
+                    trenchLocations[ballLocationIndex-2] = 0;
+                }
+                trenchLocations[ballLocationIndex-1] = 1;
+                trenchLocations[ballLocationIndex] = 1;
+            }
+        }
+    }
+    lastTime = timeNow;
+}
+
 function tick() {
     requestAnimFrame(tick);
 
     drawScene();
+    animate();
 }
 
 function webGLStart() {
@@ -1335,7 +1388,7 @@ function webGLStart() {
 </head>
 
 <body onload="webGLStart();">
-<p style="text-align: center;"><b>mouse hold and drag</b> - rotate the scene, <b>'d'</b> - dig here<br><b>'g'</b> - change the color of the plane, <b>'b'</b> - change the color of the ball<br><b>left, right, up, down arrows</b> - move the ball on the plane</p>
+<p style="text-align: center;"><b>mouse hold and drag</b> - rotate the scene<br><b>'g'</b> - change the color of the plane, <b>'b'</b> - change the color of the ball<br><b>left, right, up, down arrows</b> - move the ball on the plane</p>
 <canvas id="myCanvas" style="padding: 0; margin: auto; display: block;" width="1200" height="600"></canvas>
 <table style="border: 0; padding: 10px; margin: auto;">
 <tr><td><b>BMI: </b><input type="text" id="bmi" value="51.0" disabled style="text-align: center;" /></tr>
