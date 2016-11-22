@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>BioLogic Project</title>
+<meta charset="utf-8">
+
+<script type="text/javascript" src="/lib/glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="/lib/webgl-utils.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform vec4 uColor;
+
+    uniform vec3 uReverseLightDirection;
+
+    uniform bool uUseLighting;
+
+    varying vec3 transformedNormal;
+
+    void main(void) {
+        //gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+
+        if (!uUseLighting) {
+            gl_FragColor = vec4(1.0, 1.0, 1.0, 0.1);
+        }
+        else {
+            vec3 normal = normalize(transformedNormal);
+            float light = dot(normal, uReverseLightDirection);
+
+            gl_FragColor = uColor;
+            gl_FragColor.rgb *= 0.1 + light;
+        }
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aVertexNormal;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    uniform bool uUseLighting;
+
+    varying vec3 transformedNormal;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+
+        if (uUseLighting) 
+            transformedNormal = uNMatrix * aVertexNormal;
+    }
+</script>
+
+
+<script type="text/javascript">
+
+function degToRad(degrees) {
+    return degrees * Math.PI / 180;
+}
+
+var mouseDown = false;
+var lastMouseX = null;
+var lastMouseY = null;
+
+var rAngle = 0;
+var mvRotationMatrix = mat4.create();
+mat4.identity(mvRotationMatrix);
+
+function handleMouseDown(event) {
+    mouseDown = true;
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+}
+
+function handleMouseUp(event) {
+    mouseDown = false;
+}
+
+function handleMouseMove(event) {
+    if (!mouseDown) {
+        return;
+    }
+
+    var newX = event.clientX;
+    var newY = event.clientY;
+
+    var deltaX = newX - lastMouseX;
+
+    var newRotationMatrix = mat4.create();
+    mat4.identity(newRotationMatrix);
+    //mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
+
+    var deltaY = newY - lastMouseY;
+
+    if (rAngle <= 150 && rAngle >= -150) {
+        if (rAngle + deltaY > 150) {
+            deltaY = 150 - rAngle;
+            rAngle = 150;
+        }
+        else if (rAngle + deltaY < -150) {
+            deltaY = -150 - rAngle;
+            rAngle = -150;
+        }
+        else {
+            rAngle += deltaY;
+        }
+
+        mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
+        mat4.multiply(newRotationMatrix, mvRotationMatrix, mvRotationMatrix);
+    }
+
+    lastMouseX = newX
+    lastMouseY = newY;
+}
+
+var ballRelativeX = 0.0;
+var ballRelativeY = 0.0;
+var ballRelativeZ = 0.0;
+
+var ballLocationIndexX = 0;
+var ballLocationIndexZ = 0;
+
+var dialX = 0;
+
+var bmi;
+
+var lastTime = 0;
+var idleTick = 0;
+
+var trenchWidth = 2; // in terms of number of planeGridX
+var trenchGrid = trenchWidth * 10;
+var trenchDepthScale = 0.01;
+var trenchLocations = [];
+var trenchDepths = [];
+
+var planeLengthX = 2.0;
+var planeLengthZ = 10.0;
+
+var planeGridX = 36;
+var planeGridZ = 42;
+
+function handleKeyDown(event) {
+    //alert(event.keyCode);
+
+    var diffX = planeLengthX / planeGridX;
+    var diffZ = planeLengthZ / planeGridZ;
+
+    if (event.keyCode == 82) {
+        // mat4.identity(mvRotationMatrix);
+        // rAngle = 0;
+        //console.log(idleTick);
+    }
+    else if (event.keyCode == 68) {
+        // console.log(Math.floor(ballRelativeX/diffX+0.01));
+        //console.log(Math.ceil(ballRelativeZ/diffZ-0.01));
+        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+        if (ballLocationIndexX > 0) {
+
+            trenchLocations[ballLocationIndexX-1] = 1;
+            trenchLocations[ballLocationIndexX] = 1;
+
+            trenchDepths[ballLocationIndexX] += 1;
+            var offset = trenchDepthScale*Math.cos(Math.PI);
+            ballRelativeY += offset;
+
+            // for (var i = 0; i < planeGridX; i++) {
+            //     console.log(i);
+            //     console.log(trenchLocations[ballLocationIndexX]);
+            //     console.log(trenchDepths[ballLocationIndexX]);
+            //     console.log("\n");
+            // }
+        }
+    }
+    else if (event.keyCode == 37) {
+        idleTick = 0;
+        lastTime = 0;
+
+        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+        if (ballLocationIndexX > 1) {
+            ballRelativeX -= diffX;
+
+            ballRelativeY = ballRelativeX * ballRelativeX / 8 + ballRelativeZ * ballRelativeZ / 25+ballRelativeX*0.003;
+
+            ballLocationIndexX--;
+            var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+            ballRelativeY += offset;
+
+            bmi = parseFloat(bmi)+1.0;
+            document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
+
+            dialX--;
+            if (dialX < 0) dialX = 0;
+        }
+    }
+    else if (event.keyCode == 39) {
+        idleTick = 0;
+        lastTime = 0;
+
+        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+        if (ballLocationIndexX < planeGridX - 1) {
+            ballRelativeX += diffX;
+
+            ballRelativeY = ballRelativeX * ballRelativeX / 8 + ballRelativeZ * ballRelativeZ / 25+ballRelativeX*0.003;
+
+            ballLocationIndexX++;
+            var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+            ballRelativeY += offset;
+
+            bmi = parseFloat(bmi)-1.0;
+            document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
+
+            dialX++;
+            if (dialX > planeGridX) dialX = planeGridX;
+        }
+    }
+    else if (event.keyCode == 38) {
+        if (ballRelativeZ+planeLengthZ > diffZ){
+            ballRelativeZ -= diffZ;
+            //ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
+            ballRelativeY = ballRelativeX * ballRelativeX / 8 + ballRelativeZ * ballRelativeZ / 25+ballRelativeX*0.003;
+
+            ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+            var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+            ballRelativeY += offset;
+        }
+    }
+    else if (event.keyCode == 40) {
+        if (ballRelativeZ < 0-diffZ) {
+            ballRelativeZ += diffZ;
+            //ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
+            ballRelativeY = ballRelativeX * ballRelativeX / 8 + ballRelativeZ * ballRelativeZ / 25+ballRelativeX*0.003;
+
+            ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+            var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+            ballRelativeY += offset;
+        }
+    }
+}
+
+var gl;
+
+function initGL(canvas) {
+    try {
+        gl = canvas.getContext("experimental-webgl");
+        gl.viewportWidth = canvas.width;
+        gl.viewportHeight = canvas.height;
+    } catch (e) {
+    }
+    if (!gl) {
+        alert("Could not initialise WebGL, sorry :-(");
+    }
+}
+
+function getShader(gl, id) {
+    var shaderScript = document.getElementById(id);
+    if (!shaderScript) {
+        return null;
+    }
+    var str = "";
+    var k = shaderScript.firstChild;
+    while (k) {
+        if (k.nodeType == 3) {
+            str += k.textContent;
+        }
+        k = k.nextSibling;
+    }
+    var shader;
+    if (shaderScript.type == "x-shader/x-fragment") {
+        shader = gl.createShader(gl.FRAGMENT_SHADER);
+    } else if (shaderScript.type == "x-shader/x-vertex") {
+        shader = gl.createShader(gl.VERTEX_SHADER);
+    } else {
+        return null;
+    }
+    gl.shaderSource(shader, str);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert(gl.getShaderInfoLog(shader));
+        return null;
+    }
+    return shader;
+}
+
+var shaderProgram;
+
+function initShaders() {
+    var fragmentShader = getShader(gl, "shader-fs");
+    var vertexShader = getShader(gl, "shader-vs");
+
+    shaderProgram = gl.createProgram();
+
+    gl.attachShader(shaderProgram, vertexShader);
+    gl.attachShader(shaderProgram, fragmentShader);
+    gl.linkProgram(shaderProgram);
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        alert("Could not initialise shaders");
+    }
+
+    gl.useProgram(shaderProgram);
+
+    shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+    shaderProgram.vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
+    gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);
+
+    shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+    shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+    shaderProgram.nMatrixUniform = gl.getUniformLocation(shaderProgram, "uNMatrix");
+
+    shaderProgram.colorUniform = gl.getUniformLocation(shaderProgram, "uColor");
+
+    shaderProgram.reverseLightDirectionLocation = gl.getUniformLocation(shaderProgram, "uReverseLightDirection");
+    shaderProgram.useLightingUniform = gl.getUniformLocation(shaderProgram, "uUseLighting");
+}
+
+
+var mvMatrix = mat4.create();
+var pMatrix = mat4.create();
+var mvMatrixStack = [];
+
+function mvPushMatrix() {
+    var copy = mat4.create();
+    mat4.set(mvMatrix, copy);
+    mvMatrixStack.push(copy);
+}
+
+function mvPopMatrix() {
+    if (mvMatrixStack.length == 0) {
+        throw "Invalid PopMatrix!";
+    }
+    mvMatrix = mvMatrixStack.pop();
+}
+
+var object = 0;
+var colorThemes = [
+    [0.92, 0.55, 0.0,  1.0], 
+    [0.86, 0.41, 0.0,  1.0],
+    [0.88, 0.19, 0.12, 1.0],
+    [0.86, 0.33, 0.42, 1.0],
+    [0.64, 0.13, 0.13, 1.0],
+    [0.38, 0.14, 0.13, 1.0],
+    [0.59, 0.55, 0.43, 1.0],
+    [0.43, 0.43, 0.44, 1.0],
+    [1.0,  0.0,  0.0,  1.0],
+    [0.95, 0.75, 0.0,  1.0],
+    [0.0,  1.0,  0.0,  1.0]
+]; 
+
+var lightDir = [-0.1, 2.5, 3.0];
+var lighting;
+
+function setMatrixUniforms() {
+    gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+    gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+
+    var normalMatrix = mat3.create();
+    normalMatrix = mat4.toInverseMat3(mvMatrix, normalMatrix);
+    normalMatrix = mat3.transpose(normalMatrix);
+    gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, normalMatrix);
+
+    gl.uniform4fv(shaderProgram.colorUniform, colorThemes[object]);
+
+    vec3.normalize(lightDir);
+    gl.uniform3fv(shaderProgram.reverseLightDirectionLocation, lightDir);
+    gl.uniform1i(shaderProgram.useLightingUniform, lighting);
+}
+
+var planeVertices = [];
+var planeNormals = [];
+var planeIndices = [];
+
+var planeVertexPositionBuffer;
+var planeVertexNormalBuffer;
+var planeIndexBuffer;
+
+function initPlaneBuffers() {
+
+    planeVertices = [];
+    planeNormals = [];
+    planeIndices = [];
+
+    var diffX = planeLengthX / planeGridX;
+    var diffZ = planeLengthZ / planeGridZ;
+
+    var i = 0;
+    var d = 0;
+
+    var skip = false;
+
+    for(var z = 0.0; z > -1*planeLengthZ; z -= diffZ) {
+        d = 0;
+
+        for(var x = 0.0; x < planeLengthX; x += diffX) {
+
+            if (trenchLocations[d] == 1 && trenchDepths[d+1] > 0) { 
+                if (skip) {
+                    d++;
+                    skip = false;
+                    continue;
+                }
+
+                var diff = trenchWidth * diffX / trenchGrid;
+                for (var j = 0; j < trenchGrid; j++) {
+                    var cosx1 = trenchDepths[d+1]*trenchDepthScale*Math.cos(Math.PI/2+j*Math.PI/trenchGrid);
+                    var sx1 = x+j*diff;
+
+                    var cosx2 = trenchDepths[d+1]*trenchDepthScale*Math.cos(Math.PI/2+(j+1)*Math.PI/trenchGrid);
+                    var sx2 = x+(j+1)*diff;
+
+                    var sy0 = sx1 * sx1 / 8 + z * z / 25 + cosx1;
+                    var sy1 = sx1 * sx1 / 8 + (z-diffZ) * (z-diffZ) / 25 + cosx1;
+                    var sy2 = sx2 * sx2 / 8 + z * z / 25 + cosx2;
+                    var sy3 = sx2 * sx2 / 8 + (z-diffZ) * (z-diffZ) / 25 + cosx2;
+
+                    if (trenchDepths[d+2] > 0 || trenchDepths[d] > 0 && j < trenchGrid / 2) {
+                        var tcosx1; var tcosx2;
+                        var tsy0; var tsy1; var tsy2; var tsy3;
+
+                        if (trenchDepths[d] > 0) {
+                            tcosx1 = trenchDepths[d+2]*trenchDepthScale*Math.cos(Math.PI/2+(j+trenchGrid/2)*Math.PI/trenchGrid);
+
+                            tcosx2 = trenchDepths[d+2]*trenchDepthScale*Math.cos(Math.PI/2+(j+trenchGrid/2+1)*Math.PI/trenchGrid);
+
+                            tsy0 = sx1 * sx1 / 8 + z * z / 25 + tcosx1;
+                            tsy1 = sx1 * sx1 / 8 + (z-diffZ) * (z-diffZ) / 25 + tcosx1;
+                            tsy2 = sx2 * sx2 / 8 + z * z / 25 + tcosx2;
+                            tsy3 = sx2 * sx2 / 8 + (z-diffZ) * (z-diffZ) / 25 + tcosx2;
+
+                            if (tsy0 < sy0) sy0 = tsy0;
+                            if (tsy1 < sy1) sy1 = tsy1;
+                            if (tsy2 < sy2) sy2 = tsy2;
+                            if (tsy3 < sy3) sy3 = tsy3;
+                        }
+                    }
+
+                    if (trenchDepths[d+2] > 0 || trenchDepths[d] > 0 && j >= trenchGrid / 2) {
+                        var tcosx1; var tcosx2;
+                        var tsy0; var tsy1; var tsy2; var tsy3;
+
+                        if (trenchDepths[d+2] > 0) {
+                            tcosx1 = trenchDepths[d+2]*trenchDepthScale*Math.cos(Math.PI/2+(j-trenchGrid/2)*Math.PI/trenchGrid);
+
+                            tcosx2 = trenchDepths[d+2]*trenchDepthScale*Math.cos(Math.PI/2+(j-trenchGrid/2+1)*Math.PI/trenchGrid);
+
+                            tsy0 = sx1 * sx1 / 8 + z * z / 25 + tcosx1;
+                            tsy1 = sx1 * sx1 / 8 + (z-diffZ) * (z-diffZ) / 25 + tcosx1;
+                            tsy2 = sx2 * sx2 / 8 + z * z / 25 + tcosx2;
+                            tsy3 = sx2 * sx2 / 8 + (z-diffZ) * (z-diffZ) / 25 + tcosx2;
+
+                            if (tsy0 < sy0) sy0 = tsy0;
+                            if (tsy1 < sy1) sy1 = tsy1;
+                            if (tsy2 < sy2) sy2 = tsy2;
+                            if (tsy3 < sy3) sy3 = tsy3;
+                        }
+                    }
+
+                    // var tcosx1; var tcosx2;
+                    // var tsy0; var tsy1; var tsy2; var tsy3;
+
+                    // if (trenchDepths[d+2] > 0 && j >= trenchGrid / 2) {
+                    //     tcosx1 = trenchDepths[d+2]*trenchDepthScale*Math.cos(Math.PI/2+(j-trenchGrid/2)*Math.PI/trenchGrid);
+
+                    //     tcosx2 = trenchDepths[d+2]*trenchDepthScale*Math.cos(Math.PI/2+(j-trenchGrid/2+1)*Math.PI/trenchGrid);
+
+                    //     tsy0 = sx1 * sx1 / 8 + z * z / 25 + tcosx1;
+                    //     tsy1 = sx1 * sx1 / 8 + (z-diffZ) * (z-diffZ) / 25 + tcosx1;
+                    //     tsy2 = sx2 * sx2 / 8 + z * z / 25 + tcosx2;
+                    //     tsy3 = sx2 * sx2 / 8 + (z-diffZ) * (z-diffZ) / 25 + tcosx2;
+
+                    //     if (tsy0 < sy0) sy0 = tsy0;
+                    //     if (tsy1 < sy1) sy1 = tsy1;
+                    //     if (tsy2 < sy2) sy2 = tsy2;
+                    //     if (tsy3 < sy3) sy3 = tsy3;
+                    // }
+
+                    planeVertices.push(sx1); planeVertices.push(sy0); planeVertices.push(z);
+                    planeVertices.push(sx1); planeVertices.push(sy1); planeVertices.push(z-diffZ);
+                    planeVertices.push(sx2); planeVertices.push(sy2); planeVertices.push(z);
+                    planeVertices.push(sx2); planeVertices.push(sy3); planeVertices.push(z-diffZ);
+
+                    var p0 = [sx1, sy0, z];
+                    var p1 = [sx1, sy1, z-diffZ];
+                    var p2 = [sx2, sy2, z];
+
+                    var a = vec3.create();
+                    a = vec3.subtract(p1, p0, a);
+                    var b = vec3.create();
+                    b = vec3.subtract(p2, p0, b);
+
+                    var n = vec3.create();
+                    n = vec3.cross(b, a, n);
+
+                    for (var c = 0; c < 4; c++) { 
+                        planeNormals.push(n[0]);
+                        planeNormals.push(n[1]);
+                        planeNormals.push(n[2]);
+                    }
+
+                    planeIndices.push(i*4); 
+                    planeIndices.push(i*4+1); 
+                    planeIndices.push(i*4+3); 
+
+                    planeIndices.push(i*4); 
+                    planeIndices.push(i*4+2); 
+                    planeIndices.push(i*4+3); 
+
+                    i++;
+                }
+                d++;
+                skip = true;
+                continue;
+            }
+
+            var nx = x + diffX;
+            var nz = z - diffZ;
+
+            var y0 = x * x / 8 + z * z / 25;
+            var y1 = x * x / 8 + nz * nz / 25;
+            var y2 = nx * nx / 8 + z * z / 25;
+            var y3 = nx * nx / 8 + nz * nz / 25;
+
+            planeVertices.push(x); planeVertices.push(y0); planeVertices.push(z);
+            planeVertices.push(x); planeVertices.push(y1); planeVertices.push(nz);
+            planeVertices.push(nx); planeVertices.push(y2); planeVertices.push(z);
+            planeVertices.push(nx); planeVertices.push(y3); planeVertices.push(nz);
+
+            var p0 = [x, y0, z];
+            var p1 = [x, y1, nz];
+            var p2 = [nx, y2, z];
+
+            var a = vec3.create();
+            a = vec3.subtract(p1, p0, a);
+            var b = vec3.create();
+            b = vec3.subtract(p2, p0, b);
+
+            var n = vec3.create();
+            n = vec3.cross(b, a, n);
+
+            for (var c = 0; c < 4; c++) { 
+                planeNormals.push(n[0]);
+                planeNormals.push(n[1]);
+                planeNormals.push(n[2]);
+            }
+
+            planeIndices.push(i*4);
+            planeIndices.push(i*4+1);
+            planeIndices.push(i*4+3);
+
+            planeIndices.push(i*4);
+            planeIndices.push(i*4+2);
+            planeIndices.push(i*4+3);
+
+            i++;
+            d++;
+        }
+    }
+
+    planeVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(planeVertices), gl.STATIC_DRAW);
+    planeVertexPositionBuffer.itemSize = 3;
+    planeVertexPositionBuffer.numItems = planeVertices.length / 3;
+
+    planeVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(planeNormals), gl.STATIC_DRAW);
+    planeVertexNormalBuffer.itemSize = 3;
+    planeVertexNormalBuffer.numItems = planeNormals.length / 3;
+
+    planeIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(planeIndices), gl.STATIC_DRAW);
+    planeIndexBuffer.itemSize = 1;
+    planeIndexBuffer.numItems = planeIndices.length; 
+}
+
+// function updatePlaneBuffers() {
+//     var diffX = planeLengthX / planeGridX;
+//     var diffZ = planeLengthZ / planeGridZ;
+
+//     var i = 0;
+//     var d = 0;
+
+//     var u = 0;
+//     var v = 0;
+//     var w = 0;
+
+//     var skip = false;
+
+//     for(var z = 0.0; z > -1*planeLengthZ; z -= diffZ) {
+//         d = 0;
+
+//         for(var x = 0.0; x < planeLengthX; x += diffX) {
+//             // if (trenchLocations[d] == 1 && trenchDepths[d+1] > 0) {
+//             if (trenchLocations[d] == 1) { 
+//                 if (skip) {
+//                     d++;
+//                     skip = false;
+//                     continue;
+//                 }
+//                 var diff = trenchWidth * diffX / trenchGrid;
+//                 for (var j = 0; j < trenchGrid; j++) {
+//                     var cosx1 = trenchDepths[d+1]*trenchDepthScale*Math.cos(Math.PI/2+j*Math.PI/trenchGrid);
+//                     var sx1 = x+j*diff;
+
+//                     var cosx2 = trenchDepths[d+1]*trenchDepthScale*Math.cos(Math.PI/2+(j+1)*Math.PI/trenchGrid);
+//                     var sx2 = x+(j+1)*diff;
+
+//                     var sy0 = sx1 * sx1 / 8 + z * z / 25 + cosx1;
+//                     var sy1 = sx1 * sx1 / 8 + (z-diffZ) * (z-diffZ) / 25 + cosx1;
+//                     var sy2 = sx2 * sx2 / 8 + z * z / 25 + cosx2;
+//                     var sy3 = sx2 * sx2 / 8 + (z-diffZ) * (z-diffZ) / 25 + cosx2;
+
+//                     // var updateP0 = false;
+//                     // var updateP1 = false;
+//                     // var updateP2 = false;
+//                     // var updateP3 = false;
+
+//                     planeVertices[u*3] = sx1; 
+//                     // if(sy0 < planeVertices[u*3+1]) { 
+//                         planeVertices[u*3+1] = sy0; 
+//                     //     updateP0 = true; 
+//                     // } 
+//                     planeVertices[u*3+2] = z; u++;
+
+//                     planeVertices[u*3] = sx1; 
+//                     // if(sy1 < planeVertices[u*3+1]) { 
+//                         planeVertices[u*3+1] = sy1; 
+//                     //     updateP1 = true; 
+//                     // } 
+//                     planeVertices[u*3+2] = z-diffZ; u++;
+
+//                     planeVertices[u*3] = sx2; 
+//                     // if(sy2 < planeVertices[u*3+1]) { 
+//                         planeVertices[u*3+1] = sy2; 
+//                     //     updateP2 = true; 
+//                     // } 
+//                     planeVertices[u*3+2] = z; u++;
+
+//                     planeVertices[u*3] = sx2; 
+//                     // if(sy3 < planeVertices[u*3+1]) { 
+//                         planeVertices[u*3+1] = sy3; 
+//                     //     updateP3 = true; 
+//                     // } 
+//                     planeVertices[u*3+2] = z-diffZ; u++;
+
+//                     // if (updateP0 || updateP1 || updateP2) {
+//                         var p0 = [sx1, sy0, z];
+//                         var p1 = [sx1, sy1, z-diffZ];
+//                         var p2 = [sx2, sy2, z];
+
+//                         var a = vec3.create();
+//                         a = vec3.subtract(p1, p0, a);
+//                         var b = vec3.create();
+//                         b = vec3.subtract(p2, p0, b);
+
+//                         var n = vec3.create();
+//                         n = vec3.cross(b, a, n);
+
+//                         for (var c = 0; c < 4; c++) { 
+//                             planeNormals[v*3] = n[0];
+//                             planeNormals[v*3+1] = n[1];
+//                             planeNormals[v*3+2] = n[2];
+//                             v++;
+//                         }
+//                     // }
+//                     // else {
+//                     //     v += 4;
+//                     // }
+
+//                     planeIndices[w] = i*4; w++;
+//                     planeIndices[w] = i*4+1; w++;
+//                     planeIndices[w] = i*4+3; w++;
+
+//                     planeIndices[w] = i*4; w++;
+//                     planeIndices[w] = i*4+2; w++;
+//                     planeIndices[w] = i*4+3; w++;
+
+//                     i++;
+//                 }
+//                 d++;
+//                 // if (trenchDepths[d+1] == 0) {
+//                     skip = true;
+//                 // // }
+//                 // else {
+//                 //     u -= 4*trenchGrid/2;
+//                 //     v -= 4*trenchGrid/2;
+//                 //     w -= 6*trenchGrid/2;
+//                 //     i -= trenchGrid/2;
+//                 // }
+//                 continue;
+//             }
+
+//             var nx = x + diffX;
+//             var nz = z - diffZ;
+
+//             var y0 = x * x / 8 + z * z / 25;
+//             var y1 = x * x / 8 + nz * nz / 25;
+//             var y2 = nx * nx / 8 + z * z / 25;
+//             var y3 = nx * nx / 8 + nz * nz / 25;
+
+//             planeVertices[u*3] = x; planeVertices[u*3+1]= y0; planeVertices[u*3+2] = z; u++;
+//             planeVertices[u*3] = x; planeVertices[u*3+1]= y1; planeVertices[u*3+2] = nz; u++;
+//             planeVertices[u*3] = nx; planeVertices[u*3+1]= y2; planeVertices[u*3+2] = z; u++;
+//             planeVertices[u*3] = nx; planeVertices[u*3+1]= y3; planeVertices[u*3+2] = nz; u++;
+
+//             var p0 = [x, y0, z];
+//             var p1 = [x, y1, nz];
+//             var p2 = [nx, y2, z];
+
+//             var a = vec3.create();
+//             a = vec3.subtract(p1, p0, a);
+//             var b = vec3.create();
+//             b = vec3.subtract(p2, p0, b);
+
+//             var n = vec3.create();
+//             n = vec3.cross(b, a, n);
+
+//             for (var c = 0; c < 4; c++) { 
+//                 planeNormals[v*3] = n[0];
+//                 planeNormals[v*3+1] = n[1];
+//                 planeNormals[v*3+2] = n[2];
+//                 v++;
+//             }
+
+//             planeIndices[w] = i*4; w++;
+//             planeIndices[w] = i*4+1; w++;
+//             planeIndices[w] = i*4+3; w++;
+
+//             planeIndices[w] = i*4; w++;
+//             planeIndices[w] = i*4+2; w++;
+//             planeIndices[w] = i*4+3; w++;
+
+//             i++;
+//             d++;
+//         }
+//     }
+
+//     planeVertexPositionBuffer = gl.createBuffer();
+//     gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
+//     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(planeVertices), gl.STATIC_DRAW);
+//     planeVertexPositionBuffer.itemSize = 3;
+//     planeVertexPositionBuffer.numItems = planeVertices.length / 3;
+
+//     planeVertexNormalBuffer = gl.createBuffer();
+//     gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexNormalBuffer);
+//     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(planeNormals), gl.STATIC_DRAW);
+//     planeVertexNormalBuffer.itemSize = 3;
+//     planeVertexNormalBuffer.numItems = planeNormals.length / 3;
+
+//     planeIndexBuffer = gl.createBuffer();
+//     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
+//     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(planeIndices), gl.STATIC_DRAW);
+//     planeIndexBuffer.itemSize = 1;
+//     planeIndexBuffer.numItems = planeIndices.length; 
+// }
+
+var latitudeBands = 50;
+var longitudeBands = 50;
+var radius = 0.035; 
+
+var ballVertexPositionBuffer;
+var ballVertexNormalBuffer;
+var ballIndexBuffer;
+
+function initBallBuffers() {
+    var vertices = [];
+    var normals = [];
+    for (var latNum = 0; latNum <= latitudeBands; latNum++) {
+        var theta = latNum * Math.PI / latitudeBands;
+        var sinTheta = Math.sin(theta);
+        var cosTheta = Math.cos(theta);
+
+        for (var longNum = 0; longNum <= longitudeBands; longNum++) {
+            var phi = longNum * 2 * Math.PI / longitudeBands;
+            var sinPhi = Math.sin(phi);
+            var cosPhi = Math.cos(phi);
+
+            var x = cosPhi * sinTheta;
+            var y = cosTheta;
+            var z = sinPhi * sinTheta;
+
+            normals.push(x);
+            normals.push(y);
+            normals.push(z);
+
+            vertices.push(radius*x);
+            vertices.push(radius*y);
+            vertices.push(radius*z);
+        }
+    }
+
+    var indices = [];
+    for (var latNum = 0; latNum < latitudeBands; latNum++) {
+        for (var longNum = 0; longNum < longitudeBands; longNum++) {
+            var first = (latNum * (longitudeBands + 1)) + longNum;
+            var second = first + longitudeBands + 1;
+
+            indices.push(first);
+            indices.push(second);
+            indices.push(first + 1);
+
+            indices.push(second);
+            indices.push(second + 1);
+            indices.push(first + 1);
+        }
+    }
+
+    ballVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    ballVertexPositionBuffer.itemSize = 3;
+    ballVertexPositionBuffer.numItems = vertices.length / 3;
+
+    ballVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+    ballVertexNormalBuffer.itemSize = 3;
+    ballVertexNormalBuffer.numItems = normals.length / 3;
+
+    ballIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ballIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    ballIndexBuffer.itemSize = 1;
+    ballIndexBuffer.numItems = indices.length;
+}
+
+var scaleBarWidth = 4.15;
+var scaleBarHeight = 0.1;
+var scaleBarZ = -0.5;
+
+var rscaleBarVertexPositionBuffer;
+var rscaleBarVertexNormalBuffer;
+var rscaleBarIndexBuffer;
+
+var oscaleBarVertexPositionBuffer;
+var oscaleBarVertexNormalBuffer;
+var oscaleBarIndexBuffer;
+
+var gscaleBarVertexPositionBuffer;
+var gscaleBarVertexNormalBuffer;
+var gscaleBarIndexBuffer;
+
+function initRedScaleBarBuffers() {
+    var vertices = [];
+    var normals = [];
+    var indices = [];
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / planeGridX;
+    var index = 0;
+    var nGrid = 0;
+    for (var x = -halfW+nGrid*diffW; x < halfW-2*diffW; x += diffW) {
+        if (nGrid == 11) break;
+
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        indices.push(index*4);
+        indices.push(index*4+1);
+        indices.push(index*4+3);
+
+        indices.push(index*4);
+        indices.push(index*4+2);
+        indices.push(index*4+3);
+
+        index++;
+        nGrid++;
+
+        for (var i = 0; i < 4; i++) 
+            normals = normals.concat([0.0, 0.0, 1.0]);
+    }
+
+    rscaleBarVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, rscaleBarVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    rscaleBarVertexPositionBuffer.itemSize = 3;
+    rscaleBarVertexPositionBuffer.numItems = vertices.length / 3;
+
+    rscaleBarVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, rscaleBarVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+    rscaleBarVertexNormalBuffer.itemSize = 3;
+    rscaleBarVertexNormalBuffer.numItems = normals.length / 3;
+
+    rscaleBarIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rscaleBarIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    rscaleBarIndexBuffer.itemSize = 1;
+    rscaleBarIndexBuffer.numItems = indices.length;
+}
+function initOrangeScaleBarBuffers() {
+    var vertices = [];
+    var normals = [];
+    var indices = [];
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / planeGridX;
+    var index = 0;
+    var nGrid = 11;
+    for (var x = -halfW+nGrid*diffW; x < halfW-2*diffW; x += diffW) {
+        if (nGrid == 26) break;
+
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        indices.push(index*4);
+        indices.push(index*4+1);
+        indices.push(index*4+3);
+
+        indices.push(index*4);
+        indices.push(index*4+2);
+        indices.push(index*4+3);
+
+        index++;
+        nGrid++;
+
+        for (var i = 0; i < 4; i++) 
+            normals = normals.concat([0.0, 0.0, 1.0]);
+    }
+
+    oscaleBarVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, oscaleBarVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    oscaleBarVertexPositionBuffer.itemSize = 3;
+    oscaleBarVertexPositionBuffer.numItems = vertices.length / 3;
+
+    oscaleBarVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, oscaleBarVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+    oscaleBarVertexNormalBuffer.itemSize = 3;
+    oscaleBarVertexNormalBuffer.numItems = normals.length / 3;
+
+    oscaleBarIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, oscaleBarIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    oscaleBarIndexBuffer.itemSize = 1;
+    oscaleBarIndexBuffer.numItems = indices.length;
+}
+function initGreenScaleBarBuffers() {
+    var vertices = [];
+    var normals = [];
+    var indices = [];
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / planeGridX;
+    var index = 0;
+    var nGrid = 26;
+    for (var x = -halfW+nGrid*diffW; x < halfW-2*diffW; x += diffW) {
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        indices.push(index*4);
+        indices.push(index*4+1);
+        indices.push(index*4+3);
+
+        indices.push(index*4);
+        indices.push(index*4+2);
+        indices.push(index*4+3);
+
+        index++;
+        nGrid++;
+
+        for (var i = 0; i < 4; i++) 
+            normals = normals.concat([0.0, 0.0, 1.0]);
+    }
+
+    gscaleBarVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gscaleBarVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gscaleBarVertexPositionBuffer.itemSize = 3;
+    gscaleBarVertexPositionBuffer.numItems = vertices.length / 3;
+
+    gscaleBarVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gscaleBarVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+    gscaleBarVertexNormalBuffer.itemSize = 3;
+    gscaleBarVertexNormalBuffer.numItems = normals.length / 3;
+
+    gscaleBarIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gscaleBarIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    gscaleBarIndexBuffer.itemSize = 1;
+    gscaleBarIndexBuffer.numItems = indices.length;
+}
+
+var rmarkerVertexPositionBuffer;
+var omarkerVertexPositionBuffer;
+var gmarkerVertexPositionBuffer;
+
+function initRedMarkerBuffers() {
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / planeGridX;
+
+    var vertices = [];
+    var nGrid = 0;
+    for (var x = -halfW+nGrid*diffW; x <= halfW-2*diffW; x += diffW) {
+        if (nGrid == 12) break;
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+        nGrid++;
+    }
+
+    rmarkerVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, rmarkerVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    rmarkerVertexPositionBuffer.itemSize = 3;
+    rmarkerVertexPositionBuffer.numItems = vertices.length / 3;
+}
+function initOrangeMarkerBuffers() {
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / planeGridX;
+
+    var vertices = [];
+    var nGrid = 12;
+    for (var x = -halfW+nGrid*diffW; x <= halfW-2*diffW; x += diffW) {
+        if (nGrid == 25) break;
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+        nGrid++;
+    }
+
+    omarkerVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, omarkerVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    omarkerVertexPositionBuffer.itemSize = 3;
+    omarkerVertexPositionBuffer.numItems = vertices.length / 3;
+}
+function initGreenMarkerBuffers() {
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / planeGridX;
+
+    var vertices = [];
+    var nGrid = 25;
+    for (var x = -halfW+nGrid*diffW; x <= halfW-1*diffW; x += diffW) {
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+        nGrid++;
+    }
+
+    gmarkerVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gmarkerVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gmarkerVertexPositionBuffer.itemSize = 3;
+    gmarkerVertexPositionBuffer.numItems = vertices.length / 3;
+}
+
+var dialVertexPositionBuffer;
+var dialVertexNormalBuffer;
+var dialIndexBuffer;
+
+function initDialBuffers() {
+    var diffW = scaleBarWidth / planeGridX;
+    var halfW = diffW / 3;
+    var halfH = scaleBarHeight / 3;
+
+    var vertices = [];
+    vertices.push(-halfW);
+    vertices.push(halfH);
+    vertices.push(scaleBarZ);
+
+    vertices.push(0.0);
+    vertices.push(-halfH);
+    vertices.push(scaleBarZ);
+
+    vertices.push(halfW);
+    vertices.push(halfH);
+    vertices.push(scaleBarZ);
+
+    var normals = [];
+    for (var i = 0; i < 3; i++) 
+        normals = normals.concat([0.0, 0.0, 1.0]);
+
+    var indices = [ 0, 1, 2 ];
+
+    dialVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    dialVertexPositionBuffer.itemSize = 3;
+    dialVertexPositionBuffer.numItems = vertices.length / 3;
+
+    dialVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+    dialVertexNormalBuffer.itemSize = 3;
+    dialVertexNormalBuffer.numItems = normals.length / 3;
+
+    dialIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dialIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    dialIndexBuffer.itemSize = 1;
+    dialIndexBuffer.numItems = indices.length;
+}
+
+function initBuffers() {
+    initPlaneBuffers();
+
+    initBallBuffers();
+
+    initRedScaleBarBuffers();
+    initOrangeScaleBarBuffers();
+    initGreenScaleBarBuffers();
+
+    initRedMarkerBuffers();
+    initOrangeMarkerBuffers();
+    initGreenMarkerBuffers();
+
+    initDialBuffers();
+}
+
+
+function drawPlane() {
+    initPlaneBuffers();
+
+    mvPushMatrix();
+
+    mat4.translate(mvMatrix, [-1.0, -0.45, -1.5]);
+    mat4.multiply(mvMatrix, mvRotationMatrix);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, planeVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, planeVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
+
+    object = 3;
+    setMatrixUniforms();
+
+    gl.drawElements(gl.TRIANGLES, planeIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    // mvPopMatrix();
+}
+
+function drawBall() {
+    // mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, radius, 0.0]);
+    mat4.translate(mvMatrix, [ballRelativeX, ballRelativeY, ballRelativeZ]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, ballVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, ballVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ballIndexBuffer);
+
+    object = 0;
+    setMatrixUniforms();
+    
+    gl.drawElements(gl.TRIANGLES, ballIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    mvPopMatrix();
+}
+
+function drawRedScaleBar() {
+    mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.15, -1.1, -2.4]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, rscaleBarVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, rscaleBarVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, rscaleBarVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, rscaleBarVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rscaleBarIndexBuffer);
+
+    object = 8;
+    setMatrixUniforms();
+
+    gl.drawElements(gl.TRIANGLES, rscaleBarIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    //mvPopMatrix();
+}
+function drawOrangeScaleBar() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, 0.001, 0.0]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, oscaleBarVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, oscaleBarVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, oscaleBarVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, oscaleBarVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, oscaleBarIndexBuffer);
+
+    object = 9;
+    setMatrixUniforms();
+
+    gl.drawElements(gl.TRIANGLES, oscaleBarIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    //mvPopMatrix();
+}
+function drawGreenScaleBar() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, 0.0015, 0.0]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, gscaleBarVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, gscaleBarVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, gscaleBarVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, gscaleBarVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gscaleBarIndexBuffer);
+
+    object = 10;
+    setMatrixUniforms();
+
+    gl.drawElements(gl.TRIANGLES, gscaleBarIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    //mvPopMatrix();
+}
+
+function drawRedMarker() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, -0.001, 0.001]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, rmarkerVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, rmarkerVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    setMatrixUniforms();
+
+    gl.drawArrays(gl.LINES, 0, rmarkerVertexPositionBuffer.numItems);
+
+    //mvPopMatrix();
+}
+function drawOrangeMarker() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, 0.0, 0.0]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, omarkerVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, omarkerVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    setMatrixUniforms();
+
+    gl.drawArrays(gl.LINES, 0, omarkerVertexPositionBuffer.numItems);
+
+    //mvPopMatrix();
+}
+function drawGreenMarker() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, 0.0, 0.0]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, gmarkerVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, gmarkerVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    setMatrixUniforms();
+
+    gl.drawArrays(gl.LINES, 0, gmarkerVertexPositionBuffer.numItems);
+
+    //mvPopMatrix();
+}
+
+function drawDial() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [dialX*scaleBarWidth/planeGridX-scaleBarWidth/2, scaleBarHeight-0.017, 0.001]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, dialVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, dialVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dialIndexBuffer);
+
+    object = 1;
+    setMatrixUniforms();
+
+    gl.drawElements(gl.TRIANGLES, dialIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    mvPopMatrix();
+}
+
+function drawScene() {
+    gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 1000.0, pMatrix);
+    mat4.identity(mvMatrix);
+
+    lighting = true;
+    drawPlane();
+
+    drawBall();
+
+    drawRedScaleBar();
+    drawOrangeScaleBar();
+    drawGreenScaleBar();
+
+    lighting = false;
+    drawRedMarker();
+    drawOrangeMarker();
+    drawGreenMarker();
+    lighting = true;
+
+    drawDial();
+}
+
+// function animate() {
+//     var timeNow = new Date().getTime();
+
+//     if (lastTime != 0) {
+//         var elapsed = timeNow - lastTime;
+
+//         idleTick += elapsed / 1000;
+
+//         ballLocationIndex = Math.floor(ballRelativeX/(planeLengthX / planeGridX)+0.01);
+
+//         if (idleTick > 1) {
+//             if (ballLocationIndex > 0) {
+//                 // if (trenchLocations[ballLocationIndex] == 0 || trenchLocations[ballLocationIndex-1] == 0) {
+//                 //     var offset = trenchDepths[ballLocationIndex]*trenchDepthScale*Math.cos(Math.PI);
+//                 //     ballRelativeY = offset;
+//                 // }
+//                 // else if (trenchLocations[ballLocationIndex] == 1 && trenchLocations[ballLocationIndex-1] == 1 && trenchLocations[ballLocationIndex+1] == 1 && trenchLocations[ballLocationIndex-2] == 1) {
+//                 //     var offset = trenchDepths[ballLocationIndex]*trenchDepthScale*Math.cos(Math.PI);
+//                 //     ballRelativeY = offset;
+//                 // }
+
+//                 if (trenchLocations[ballLocationIndex] == 1 && trenchLocations[ballLocationIndex-1] == 1) {
+//                     if (trenchDepths[ballLocationIndexX] == 0) {
+//                         trenchLocations[ballLocationIndex+1] = 0;
+//                         trenchLocations[ballLocationIndex-2] = 0;
+
+//                         trenchDepths[ballLocationIndex+1] = 0;
+//                         trenchDepths[ballLocationIndex-1] = 0;
+//                     }
+//                 }
+//                 else if (trenchLocations[ballLocationIndex] == 1) {
+//                     trenchLocations[ballLocationIndex+1] = 0;
+
+//                     trenchDepths[ballLocationIndex+1] = 0;
+//                 }
+//                 else if (trenchLocations[ballLocationIndex-1] == 1) {
+//                     trenchLocations[ballLocationIndex-2] = 0;
+
+//                     trenchDepths[ballLocationIndex-1] = 0;
+//                 }
+//                 trenchLocations[ballLocationIndex-1] = 1;
+//                 trenchLocations[ballLocationIndex] = 1;
+//             }
+
+//             if (trenchDepths[ballLocationIndex] < 4) {
+//                 ballRelativeY += trenchDepthScale*Math.cos(Math.PI);
+//                 trenchDepths[ballLocationIndex] += 1;
+//             }
+
+//             idleTick = 0;
+//         }
+//     }
+//     lastTime = timeNow;
+// }
+
+function tick() {
+    requestAnimFrame(tick);
+
+    drawScene();
+    //animate();
+}
+
+function webGLStart() {
+    var canvas = document.getElementById("myCanvas");
+
+    initGL(canvas);
+    initShaders();
+    initBuffers();
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.enable(gl.DEPTH_TEST);
+
+    canvas.onmousedown = handleMouseDown;
+    document.onmouseup = handleMouseUp;
+    document.onmousemove = handleMouseMove;
+
+    document.onkeydown = handleKeyDown;
+
+    rAngle = 5;
+    mat4.rotate(mvRotationMatrix, degToRad(rAngle / 10), [1, 0, 0]);
+
+    ballRelativeX = planeLengthX / planeGridX;
+    ballRelativeZ = 0 - planeLengthZ / planeGridZ;
+    ballRelativeY = ballRelativeX * ballRelativeX / 8 + ballRelativeZ * ballRelativeZ / 25;
+
+    bmi = document.getElementById("bmi").value;
+
+    for (var i = 0; i < planeGridX; i++) {
+        trenchLocations[i] = 0;
+        trenchDepths[i] = 0;
+    }
+
+    tick();
+}
+
+</script>
+
+</head>
+
+<body onload="webGLStart();">
+<p style="text-align: center;"><b>mouse hold and drag</b> - rotate the scene, <b>'d'</b> - dig here<br><b>'g'</b> - change the color of the plane, <b>'b'</b> - change the color of the ball<br><b>left, right, up, down arrows</b> - move the ball on the plane</p>
+<canvas id="myCanvas" style="padding: 0; margin: auto; display: block;" width="1200" height="600"></canvas>
+<table style="border: 0; padding: 10px; margin: auto;">
+<tr><td><b>BMI: </b><input type="text" id="bmi" value="51.0" disabled style="text-align: center;" /></tr>
+</table>
+</body>
+
+</html>
