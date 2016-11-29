@@ -126,15 +126,21 @@ var ballRelativeX = 0.0;
 var ballRelativeY = 0.0;
 var ballRelativeZ = 0.0;
 
+var ballTravel = 0;
+
 var ballLocationIndexX = 0;
 var ballLocationIndexZ = 0;
 
-var dialX = 0;
+var dialX = 0.0;
 
+var orgbmi;
 var bmi;
+var age;
 
 var lastTime = 0;
 var idleTick = 0;
+var sec = 0;
+var aged = 0;
 
 var trenchWidth = 2; // in terms of number of planeGridX
 var trenchGrid = trenchWidth * 10;
@@ -147,8 +153,8 @@ var xoffsets = []
 var planeLengthX = 2.4;
 var planeLengthZ = 10.0;
 
-var planeGridX = 36;
-var planeGridZ = 42;
+var planeGridX = 28;
+var planeGridZ = 31;
 
 var planeVertices = [];
 var planeNormals = [];
@@ -156,114 +162,127 @@ var planeIndices = [];
 
 var xfac = 8;
 var zfac = 30;
+var curfac = 10;
 
-function handleKeyDown(event) {
-    //alert(event.keyCode);
+// function handleKeyDown(event) {
+//     //alert(event.keyCode);
 
-    var diffX = planeLengthX / planeGridX;
-    var diffZ = planeLengthZ / planeGridZ;
+//     var diffX = planeLengthX / planeGridX;
+//     var diffZ = planeLengthZ / planeGridZ;
 
-    if (event.keyCode == 82) {
-        // mat4.identity(mvRotationMatrix);
-        // rAngle = 0;
-        //console.log(idleTick);
-        ballRelativeZ = 0 - planeLengthZ / planeGridZ;
-    }
-    else if (event.keyCode == 68) {
-        //console.log(Math.floor(ballRelativeX/diffX+0.01));
-        //console.log(Math.ceil(ballRelativeZ/diffZ-0.01));
-        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
-        if (ballLocationIndexX > 0) {
+//     if (event.keyCode == 82) {
+//         // mat4.identity(mvRotationMatrix);
+//         // rAngle = 0;
+//         //console.log(idleTick);
+//         ballRelativeZ = 0 - planeLengthZ / planeGridZ;
+//     }
+//     else if (event.keyCode == 81) {
+//         // mat4.identity(mvRotationMatrix);
+//         // rAngle = 0;
+//         //console.log(idleTick);
+//         // ballRelativeZ = 0 - planeLengthZ / planeGridZ;
+//         // planeGridZ--;
+//         // if (planeGridZ < 0) planeGridZ = 0;
+//     }
+//     else if (event.keyCode == 68) {
+//         //console.log(Math.floor(ballRelativeX/diffX+0.01));
+//         //console.log(Math.ceil(ballRelativeZ/diffZ-0.01));
+//         ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+//         if (ballLocationIndexX > 0) {
 
-            trenchLocations[ballLocationIndexX-1] = 1;
-            trenchLocations[ballLocationIndexX] = 1;
+//             trenchLocations[ballLocationIndexX-1] = 1;
+//             trenchLocations[ballLocationIndexX] = 1;
 
-            trenchDepths[ballLocationIndexX] += 1;
-            // var offset = trenchDepthScale*Math.cos(Math.PI);
-            // ballRelativeY += offset;
-        }
-    }
-    else if (event.keyCode == 37) {
-        idleTick = 0;
-        lastTime = 0;
+//             trenchDepths[ballLocationIndexX] += 1;
+//             // var offset = trenchDepthScale*Math.cos(Math.PI);
+//             // ballRelativeY += offset;
+//         }
+//     }
+//     else if (event.keyCode == 37) {
+//         idleTick = 0;
+//         lastTime = 0;
+//         sec = 0;
 
-        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
-        // ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
+//         ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+//         // ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
 
-        if (ballLocationIndexX > 1) {
-            ballRelativeX -= diffX;
+//         if (ballLocationIndexX > 1) {
+//             ballRelativeX -= diffX;
 
-            // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
+//             // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
 
-            // ballLocationIndexX--;
-            // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
-            // ballRelativeY += offset;
+//             // ballLocationIndexX--;
+//             // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+//             // ballRelativeY += offset;
 
-            bmi = parseFloat(bmi)+1.0;
-            document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
+//             bmi = parseFloat(bmi)+1.0;
+//             orgbmi = bmi;
+//             document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
 
-            dialX--;
-            if (dialX < 0) dialX = 0;
-        }
-    }
-    else if (event.keyCode == 39) {
-        idleTick = 0;
-        lastTime = 0;
+//             dialX-=1.0;
+//             if (dialX < 0) dialX = 0.0;
+//         }
+//     }
+//     else if (event.keyCode == 39) {
+//         idleTick = 0;
+//         lastTime = 0;
+//         sec = 0;
 
-        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
-        // ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
+//         ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+//         // ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
 
-        if (ballLocationIndexX < planeGridX - 1) {
-            ballRelativeX += diffX;
+//         if (ballLocationIndexX < planeGridX - 1) {
+//             ballRelativeX += diffX;
 
-            // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
+//             // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
 
-            // ballLocationIndexX++;
-            // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
-            // ballRelativeY += offset;
+//             // ballLocationIndexX++;
+//             // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+//             // ballRelativeY += offset;
 
-            bmi = parseFloat(bmi)-1.0;
-            document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
+//             bmi = parseFloat(bmi)-1.0;
+//             orgbmi = bmi;
+//             document.getElementById("bmi").setAttribute("value", bmi.toFixed(1));
 
-            dialX++;
-            if (dialX > planeGridX) dialX = planeGridX;
-        }
-    }
-    else if (event.keyCode == 38) {
-        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
-        ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
+//             dialX+=1.0;
+//             if (dialX > planeGridX) dialX = planeGridX;
+//         }
+//     }
+//     else if (event.keyCode == 38) {
+//         ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+//         ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
         
-        if (ballLocationIndexZ < planeGridZ) {
-            ballRelativeZ -= diffZ;
+//         if (ballLocationIndexZ < planeGridZ) {
+//             ballRelativeZ -= diffZ;
 
-            // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
+//             // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
 
-            // ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
-            // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
-            // ballRelativeY += offset;
+//             // ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+//             // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+//             // ballRelativeY += offset;
 
-            // ballRelativeY = planeVertices[(ballLocationIndexZ+1)*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+1];
+//             // ballRelativeY = planeVertices[(ballLocationIndexZ+1)*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+1];
 
-        }
-    }
-    else if (event.keyCode == 40) {
-        ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
-        ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
+//         }
+//     }
+//     else if (event.keyCode == 40) {
+//         ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+//         ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/diffZ-0.01));
 
-        if (ballLocationIndexZ > 1) {
-            ballRelativeZ += diffZ;
+//         if (ballLocationIndexZ > 1) {
+//             ballRelativeZ += diffZ;
 
-            // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
+//             // ballRelativeY = ballRelativeX * ballRelativeX / xfac + ballRelativeZ * ballRelativeZ / zfac + ballRelativeX*0.003;
 
-            // ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
-            // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
-            // ballRelativeY += offset;
+//             // ballLocationIndexX = Math.floor(ballRelativeX/diffX+0.01);
+//             // var offset = trenchDepths[ballLocationIndexX]*trenchDepthScale*Math.cos(Math.PI);
+//             // ballRelativeY += offset;
 
-            // ballRelativeY = planeVertices[(ballLocationIndexZ-1)*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+1];
+//             // ballRelativeY = planeVertices[(ballLocationIndexZ-1)*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+1];
 
-        }
-    }
-}
+//         }
+//     }
+// }
 
 var gl;
 
@@ -372,8 +391,9 @@ var colorThemes = [
     [0.59, 0.55, 0.43, 1.0],
     [0.43, 0.43, 0.44, 1.0],
     [1.0,  0.0,  0.0,  1.0],
-    [0.95, 0.75, 0.0,  1.0],
-    [0.0,  1.0,  0.0,  1.0]
+    [0.95, 0.55, 0.0,  1.0],
+    [0.0,  1.0,  0.0,  1.0],
+    [1.0,  1.0,  0.0,  1.0]
 ]; 
 
 var lightDir = [-0.1, 2.5, 3.0];
@@ -476,6 +496,8 @@ function initPlaneBuffers() {
     planeIndexBuffer.numItems = planeIndices.length; 
 }
 
+// var tDepths = [];
+
 function updatePlaneBuffers() {
 
     var diffX = planeLengthX / planeGridX;
@@ -486,8 +508,6 @@ function updatePlaneBuffers() {
     var d = 0;
     var u = 0;
     var i = 0;
-
-    var offset = 0;
 
     var tDepths = [];
     for (var i = 0; i < planeGridX-1; i++) {
@@ -500,15 +520,102 @@ function updatePlaneBuffers() {
         tDepths.push(0);
     }
 
-    for(var z = 0.0; z > -1*planeLengthZ; z -= diffZ) {
-        d = 0;
+    var shift = Math.floor((5*aged*diffZ)*(5*aged*diffZ)/curfac);
+    ballTravel = 0-shift;
+    for (var j = 0; j < tDepths.length; j++) {
+        if (j+shift > tDepths.length-1) {
+            break;
+        }
+        tDepths[j] = tDepths[j+shift];
+    }
+    for (; j < tDepths.length; j++) {
+        tDepths[j] = 0;
+    }
 
+    // var offset = 0.0;
+    for(var z = 0.0; z > -1*planeLengthZ; z -= diffZ) {
+
+        d = 0;
         for(var x = 0.0; x < planeLengthX; x += diff) {
+
+            var nx = x + diff;
+            var nz = z - diffZ;
+
+            var y0 = x * x / xfac + z * z / zfac;
+            var y1 = x * x / xfac + nz * nz / zfac;
+            var y2 = nx * nx / xfac + z * z / zfac;
+            var y3 = nx * nx / xfac + nz * nz / zfac;
+
+            var basei = u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3;
+            planeVertices[basei+0] = x; planeVertices[basei+1] = y0; planeVertices[basei+2] = z;
+            planeVertices[basei+3] = x; planeVertices[basei+4] = y1; planeVertices[basei+5] = nz;
+            planeVertices[basei+6] = nx; planeVertices[basei+7] = y2; planeVertices[basei+8] = z;
+            planeVertices[basei+9] = nx; planeVertices[basei+10] = y3; planeVertices[basei+11] = nz;
+
+            var p0 = [x, y0, z];
+            var p1 = [x, y1, nz];
+            var p2 = [nx, y2, z];
+            var p3 = [nx, y3, nz];
+
+            var a = vec3.create();
+            a = vec3.subtract(p1, p0, a);
+            var b = vec3.create();
+            b = vec3.subtract(p2, p0, b);
+
+            var n = vec3.create();
+            n = vec3.cross(b, a, n);
+
+            for (var c = 0; c < 4; c++) { 
+                planeNormals[basei+c*3+0] = n[0];
+                planeNormals[basei+c*3+1] = n[1];
+                planeNormals[basei+c*3+2] = n[2];
+            }
+
+            d++; 
+        }
+
+        d = 0;
+        shift = Math.floor((z-aged*diffZ)*(z-aged*diffZ)/curfac+x*x/10);
+        for(var x = 0.0; x < planeLengthX; x += diff) {
+            // offset = ((z-aged*diffZ)*(z-aged*diffZ)/curfac+x*x/10-Math.floor((z-aged*diffZ)*(z-aged*diffZ)/curfac+x*x/10))/10;
+            // console.log(offset);
+
+            if (tDepths[d+shift] > 0) {
+                for (var j = 0; j < trenchGrid; j++) {
+                    var angle1 = Math.PI/2+j*Math.PI/trenchGrid; //+offset*Math.PI
+                    // if (angle1 > 3*Math.PI/2) angle1 = 3*Math.PI/2;
+                    var cosx1 = tDepths[d+shift]*trenchDepthScale*Math.cos(angle1);
+                    var sx1 = x+j*diff;
+
+                    var angle2 = Math.PI/2+(j+1)*Math.PI/trenchGrid; //+offset*Math.PI
+                    // if (angle2 > 3*Math.PI/2) angle2 = 3*Math.PI/2;
+                    var cosx2 = tDepths[d+shift]*trenchDepthScale*Math.cos(angle2);
+                    var sx2 = x+(j+1)*diff;
+
+                    var basei = u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+j*4*3;
+
+                    var tmpy1 = sx1 * sx1 / xfac + (z-diffZ) * (z-diffZ) / zfac + cosx1;
+                    var tmpy3 = sx2 * sx2 / xfac + (z-diffZ) * (z-diffZ) / zfac + cosx2;
+
+                    var sy1 = planeVertices[basei+4]; 
+                    var sy3 = planeVertices[basei+10];
+
+                    if (tmpy1 < sy1) {
+                        sy1 = tmpy1;
+                        planeVertices[basei+4] = sy1;
+                    }
+                    if (tmpy3 < sy3) {
+                        sy3 = tmpy3;
+                        planeVertices[basei+10] = sy3;
+                    }
+                }
+            }
 
             if (tDepths[d] > 0) { 
 
                 for (var j = 0; j < trenchGrid; j++) {
                     var angle1 = Math.PI/2+j*Math.PI/trenchGrid; //+offset*Math.PI
+                    // if (angle1 > 3*Math.PI/2) angle1 = 3*Math.PI/2;
                     var cosx1 = tDepths[d]*trenchDepthScale*Math.cos(angle1);
                     var sx1 = x+j*diff;
 
@@ -520,31 +627,31 @@ function updatePlaneBuffers() {
                     var basei = u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+j*4*3;
 
                     var tmpy0 = sx1 * sx1 / xfac + z * z / zfac + cosx1;
-                    var tmpy1 = sx1 * sx1 / xfac + (z-diffZ) * (z-diffZ) / zfac + cosx1;
+                    // var tmpy1 = sx1 * sx1 / xfac + (z-diffZ) * (z-diffZ) / zfac + cosx1;
                     var tmpy2 = sx2 * sx2 / xfac + z * z / zfac + cosx2;
-                    var tmpy3 = sx2 * sx2 / xfac + (z-diffZ) * (z-diffZ) / zfac + cosx2;
+                    // var tmpy3 = sx2 * sx2 / xfac + (z-diffZ) * (z-diffZ) / zfac + cosx2;
 
                     var sy0 = planeVertices[basei+1]; 
-                    var sy1 = planeVertices[basei+4]; 
+                    // var sy1 = planeVertices[basei+4]; 
                     var sy2 = planeVertices[basei+7]; 
-                    var sy3 = planeVertices[basei+10];
+                    // var sy3 = planeVertices[basei+10];
 
-                    if (tmpy0 < planeVertices[basei+1]) {
+                    if (tmpy0 < sy0) {
                         sy0 = tmpy0;
                         planeVertices[basei+1] = sy0;
                     }
-                    if (tmpy1 < planeVertices[basei+4]) {
-                        sy1 = tmpy1;
-                        planeVertices[basei+4] = sy1;
-                    }
-                    if (tmpy2 < planeVertices[basei+7]) {
+                    // if (tmpy1 < sy1) {
+                    //     sy1 = tmpy1;
+                    //     planeVertices[basei+4] = sy1;
+                    // }
+                    if (tmpy2 < sy2) {
                         sy2 = tmpy2;
                         planeVertices[basei+7] = sy2;
                     }
-                    if (tmpy3 < planeVertices[basei+10]) {
-                        sy3 = tmpy3;
-                        planeVertices[basei+10] = sy3;
-                    }
+                    // if (tmpy3 < sy3) {
+                    //     sy3 = tmpy3;
+                    //     planeVertices[basei+10] = sy3;
+                    // }
 
                 }
             }
@@ -554,8 +661,9 @@ function updatePlaneBuffers() {
 
         u++;
 
-        // offset = (u*u/200-Math.floor(u*u/200))/trenchGrid;
-        var shift = Math.floor(z*z/15+x*x/10);
+        // offset = (z-aged*diffZ)*(z-aged*diffZ)/curfac+x*x/10-Math.floor((z-aged*diffZ)*(z-aged*diffZ)/curfac+x*x/10);
+        // console.log("%d, %f", u, offset);
+        shift = Math.floor((z-aged*diffZ)*(z-aged*diffZ)/curfac+x*x/10);
         for (var j = 0; j < tDepths.length; j++) {
             if (j+shift > tDepths.length-1) {
                 break;
@@ -575,27 +683,66 @@ function updatePlaneBuffers() {
 
         for(var x = 0.0; x < planeLengthX; x += diff)  {
 
-            if (u > 0) {
+            var cy0 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+1];
+            var cy1 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+4];
+            var cy2 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+7];
+            var cy3 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+10];
 
-                var cy0 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+1];
-                var ly1 = planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+4];
-                if (ly1 < cy0) {
-                    planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+1] = ly1;
-                }
-                else if (cy0 < ly1) {
-                    planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+4] = cy0;
-                }
+            var ly1 = planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+4];
+            var ly3 = planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+10];
 
-                var cy2 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+7];
-                var ly3 = planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+10];
-                if (ly3 < cy2) {
-                    planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+7] = ly3;
-                }
-                else if (cy2 < ly3) {
-                    planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+10] = cy2;
-                }
+            var ny0 = planeVertices[(u+1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+1];
+            var ny2 = planeVertices[(u+1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+7];
 
+            if (cy0 < ly1) {
+                planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+4] = cy0;
             }
+            else if (ly1 < cy0) {
+                planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+1] = ly1;
+            }
+
+            if (cy2 < ly3) {
+                planeVertices[(u-1)*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+10] = cy2;
+            }
+            else if (ly3 < cy2) {
+                planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+7] = ly3;
+            }
+            d++;
+        }
+
+        u++;
+    }
+
+    u = 0;
+    d = 0;
+    for(var z = 0.0; z > -1*planeLengthZ; z -= diffZ) {
+        d = 0;
+
+        for(var x = 0.0; x < planeLengthX; x += diff)  {
+
+            if (x < planeLengthX-diff) {
+                var cy2 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+7];
+                var ny0 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+(d+1)*4*3+1];
+
+                var cy3 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+10];
+                var ny1 = planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+(d+1)*4*3+4];
+
+                
+                if (ny0 < cy2) {
+                    planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+7] = ny0;
+                }
+                if (cy2 < ny0) {
+                    planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+(d+1)*4*3+1] = cy2;
+                }
+
+                if (ny1 < cy3) {
+                    planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+d*4*3+10] = ny1;
+                }
+                if (cy3 < ny1) {
+                    planeVertices[u*planeGridX*trenchGrid/trenchWidth*4*3+(d+1)*4*3+4] = cy3;
+                }
+            }
+
             d++;
         }
 
@@ -663,6 +810,10 @@ function updatePlaneBuffers() {
 
 var dividerVertexPositionBuffer;
 
+var slidu = 1;
+var slidz = planeLengthZ / planeGridZ;
+var slids = 0;
+
 function initDividerBuffers() {
 
     var diffX = planeLengthX / planeGridX;
@@ -679,10 +830,10 @@ function initDividerBuffers() {
 
         for(var x = 0.0; x < planeLengthX; x += diffX) {
             
-            if (d == 12 || d == 27) {
+            if (d == 11 || d == 16 || d == 21) {
                 var nz = z - diffZ;
 
-                var y0 = planeVertices[u*planeGridX/trenchWidth*trenchGrid*4*3+d*trenchGrid/trenchWidth*4*3+1];
+                var y0 = planeVertices[u*planeGridX/trenchWidth*trenchGrid*4*3+d*trenchGrid/trenchWidth*4*3+1]; 
                 var y1 = planeVertices[u*planeGridX/trenchWidth*trenchGrid*4*3+d*trenchGrid/trenchWidth*4*3+4];
 
                 vertices.push(x);
@@ -699,15 +850,15 @@ function initDividerBuffers() {
         u++;
     }
 
-    u = 1;
-    for (var z = -diffZ; z > -1*planeLengthZ; z -= diffZ) {
-        d = 0;
+    u = slidu;
+    for (var z = -1*slidz; z >= -1*planeLengthZ; z -= 2*diffZ) {
 
+        d = 0;
         for(var x = 0.0; x < planeLengthX; x += diff) {
             var nx = x + diff;
 
             var y0 = planeVertices[u*planeGridX/trenchWidth*trenchGrid*4*3+d*4*3+1];
-            var y2 = planeVertices[u*planeGridX/trenchWidth*trenchGrid*4*3+d*4*3+7];
+            var y2 = planeVertices[u*planeGridX/trenchWidth*trenchGrid*4*3+d*4*3+7]; 
 
             vertices.push(x);
             vertices.push(y0);
@@ -719,7 +870,7 @@ function initDividerBuffers() {
 
             d++;
         }
-        u++;
+        u+=2;
     }
 
     dividerVertexPositionBuffer = gl.createBuffer();
@@ -811,6 +962,10 @@ var oscaleBarVertexPositionBuffer;
 var oscaleBarVertexNormalBuffer;
 var oscaleBarIndexBuffer;
 
+var yscaleBarVertexPositionBuffer;
+var yscaleBarVertexNormalBuffer;
+var yscaleBarIndexBuffer;
+
 var gscaleBarVertexPositionBuffer;
 var gscaleBarVertexNormalBuffer;
 var gscaleBarIndexBuffer;
@@ -821,11 +976,11 @@ function initRedScaleBarBuffers() {
     var indices = [];
     var halfW = scaleBarWidth / 2;
     var halfH = scaleBarHeight / 2;
-    var diffW = scaleBarWidth / planeGridX;
+    var diffW = scaleBarWidth / (planeGridX-1);
     var index = 0;
     var nGrid = 0;
     for (var x = -halfW+nGrid*diffW; x < halfW-2*diffW; x += diffW) {
-        if (nGrid == 11) break;
+        if (nGrid == 10) break;
 
         vertices.push(x);
         vertices.push(halfH);
@@ -882,11 +1037,11 @@ function initOrangeScaleBarBuffers() {
     var indices = [];
     var halfW = scaleBarWidth / 2;
     var halfH = scaleBarHeight / 2;
-    var diffW = scaleBarWidth / planeGridX;
+    var diffW = scaleBarWidth / (planeGridX-1);
     var index = 0;
-    var nGrid = 11;
+    var nGrid = 10;
     for (var x = -halfW+nGrid*diffW; x < halfW-2*diffW; x += diffW) {
-        if (nGrid == 26) break;
+        if (nGrid == 15) break;
 
         vertices.push(x);
         vertices.push(halfH);
@@ -937,15 +1092,76 @@ function initOrangeScaleBarBuffers() {
     oscaleBarIndexBuffer.itemSize = 1;
     oscaleBarIndexBuffer.numItems = indices.length;
 }
+function initYellowScaleBarBuffers() {
+    var vertices = [];
+    var normals = [];
+    var indices = [];
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / (planeGridX-1);
+    var index = 0;
+    var nGrid = 15;
+    for (var x = -halfW+nGrid*diffW; x < halfW-2*diffW; x += diffW) {
+        if (nGrid == 20) break;
+
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x+diffW);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+
+        indices.push(index*4);
+        indices.push(index*4+1);
+        indices.push(index*4+3);
+
+        indices.push(index*4);
+        indices.push(index*4+2);
+        indices.push(index*4+3);
+
+        index++;
+        nGrid++;
+
+        for (var i = 0; i < 4; i++) 
+            normals = normals.concat([0.0, 0.0, 1.0]);
+    }
+
+    yscaleBarVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, yscaleBarVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    yscaleBarVertexPositionBuffer.itemSize = 3;
+    yscaleBarVertexPositionBuffer.numItems = vertices.length / 3;
+
+    yscaleBarVertexNormalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, yscaleBarVertexNormalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+    yscaleBarVertexNormalBuffer.itemSize = 3;
+    yscaleBarVertexNormalBuffer.numItems = normals.length / 3;
+
+    yscaleBarIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, yscaleBarIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    yscaleBarIndexBuffer.itemSize = 1;
+    yscaleBarIndexBuffer.numItems = indices.length;
+}
 function initGreenScaleBarBuffers() {
     var vertices = [];
     var normals = [];
     var indices = [];
     var halfW = scaleBarWidth / 2;
     var halfH = scaleBarHeight / 2;
-    var diffW = scaleBarWidth / planeGridX;
+    var diffW = scaleBarWidth / (planeGridX-1);
     var index = 0;
-    var nGrid = 26;
+    var nGrid = 20;
     for (var x = -halfW+nGrid*diffW; x < halfW-2*diffW; x += diffW) {
         vertices.push(x);
         vertices.push(halfH);
@@ -999,17 +1215,18 @@ function initGreenScaleBarBuffers() {
 
 var rmarkerVertexPositionBuffer;
 var omarkerVertexPositionBuffer;
+var ymarkerVertexPositionBuffer;
 var gmarkerVertexPositionBuffer;
 
 function initRedMarkerBuffers() {
     var halfW = scaleBarWidth / 2;
     var halfH = scaleBarHeight / 2;
-    var diffW = scaleBarWidth / planeGridX;
+    var diffW = scaleBarWidth / (planeGridX-1);
 
     var vertices = [];
     var nGrid = 0;
     for (var x = -halfW+nGrid*diffW; x <= halfW-2*diffW; x += diffW) {
-        if (nGrid == 12) break;
+        if (nGrid == 10) break;
         vertices.push(x);
         vertices.push(halfH);
         vertices.push(scaleBarZ);
@@ -1029,12 +1246,12 @@ function initRedMarkerBuffers() {
 function initOrangeMarkerBuffers() {
     var halfW = scaleBarWidth / 2;
     var halfH = scaleBarHeight / 2;
-    var diffW = scaleBarWidth / planeGridX;
+    var diffW = scaleBarWidth / (planeGridX-1);
 
     var vertices = [];
-    var nGrid = 12;
+    var nGrid = 10;
     for (var x = -halfW+nGrid*diffW; x <= halfW-2*diffW; x += diffW) {
-        if (nGrid == 25) break;
+        if (nGrid == 15) break;
         vertices.push(x);
         vertices.push(halfH);
         vertices.push(scaleBarZ);
@@ -1051,14 +1268,39 @@ function initOrangeMarkerBuffers() {
     omarkerVertexPositionBuffer.itemSize = 3;
     omarkerVertexPositionBuffer.numItems = vertices.length / 3;
 }
+function initYellowMarkerBuffers() {
+    var halfW = scaleBarWidth / 2;
+    var halfH = scaleBarHeight / 2;
+    var diffW = scaleBarWidth / (planeGridX-1);
+
+    var vertices = [];
+    var nGrid = 15;
+    for (var x = -halfW+nGrid*diffW; x <= halfW-2*diffW; x += diffW) {
+        if (nGrid == 20) break;
+        vertices.push(x);
+        vertices.push(halfH);
+        vertices.push(scaleBarZ);
+
+        vertices.push(x);
+        vertices.push(-halfH);
+        vertices.push(scaleBarZ);
+        nGrid++;
+    }
+
+    ymarkerVertexPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ymarkerVertexPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    ymarkerVertexPositionBuffer.itemSize = 3;
+    ymarkerVertexPositionBuffer.numItems = vertices.length / 3;
+}
 function initGreenMarkerBuffers() {
     var halfW = scaleBarWidth / 2;
     var halfH = scaleBarHeight / 2;
-    var diffW = scaleBarWidth / planeGridX;
+    var diffW = scaleBarWidth / (planeGridX-1);
 
     var vertices = [];
-    var nGrid = 25;
-    for (var x = -halfW+nGrid*diffW; x <= halfW-1.2*diffW; x += diffW) {
+    var nGrid = 20;
+    for (var x = -halfW+nGrid*diffW; x <= halfW-diffW; x += diffW) {
         vertices.push(x);
         vertices.push(halfH);
         vertices.push(scaleBarZ);
@@ -1081,7 +1323,7 @@ var dialVertexNormalBuffer;
 var dialIndexBuffer;
 
 function initDialBuffers() {
-    var diffW = scaleBarWidth / planeGridX;
+    var diffW = scaleBarWidth / (planeGridX-1);
     var halfW = diffW / 3;
     var halfH = scaleBarHeight / 3;
 
@@ -1132,10 +1374,12 @@ function initBuffers() {
 
     initRedScaleBarBuffers();
     initOrangeScaleBarBuffers();
+    initYellowScaleBarBuffers();
     initGreenScaleBarBuffers();
 
     initRedMarkerBuffers();
     initOrangeMarkerBuffers();
+    initYellowMarkerBuffers();
     initGreenMarkerBuffers();
 
     initDialBuffers();
@@ -1186,13 +1430,20 @@ function drawDivider() {
 function drawBall() {
     // mvPushMatrix();
 
+    if (!(dialX > 0.0 && bmi < 45.0)) {
+        ballTravel = 0;
+        dialX = 0.0;
+        bmi = 45.0;
+        ballRelativeX = planeLengthX / planeGridX;
+    }
+
     ballLocationIndexX = Math.floor(ballRelativeX/(planeLengthX / planeGridX)+0.01);
     ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/(planeLengthZ / planeGridZ)-0.01));
 
-    ballRelativeY = planeVertices[ballLocationIndexZ*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+1];   
+    ballRelativeY = planeVertices[ballLocationIndexZ*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+ballTravel*4*3+1];   
 
     mat4.translate(mvMatrix, [0.0, radius, 0.0]);
-    mat4.translate(mvMatrix, [ballRelativeX, ballRelativeY, ballRelativeZ]);
+    mat4.translate(mvMatrix, [ballRelativeX-aged*0.001+ballTravel*trenchWidth*planeLengthX/planeGridX/trenchGrid, ballRelativeY, ballRelativeZ]);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, ballVertexPositionBuffer);
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, ballVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -1213,7 +1464,7 @@ function drawBall() {
 function drawRedScaleBar() {
     mvPushMatrix();
 
-    mat4.translate(mvMatrix, [0.15, -1.1, -2.4]);
+    mat4.translate(mvMatrix, [0.1, -1.1, -2.4]);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, rscaleBarVertexPositionBuffer);
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, rscaleBarVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -1247,6 +1498,26 @@ function drawOrangeScaleBar() {
     setMatrixUniforms();
 
     gl.drawElements(gl.TRIANGLES, oscaleBarIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+    //mvPopMatrix();
+}
+function drawYellowScaleBar() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, 0.001, 0.0]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, yscaleBarVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, yscaleBarVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, yscaleBarVertexNormalBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, yscaleBarVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, yscaleBarIndexBuffer);
+
+    object = 11;
+    setMatrixUniforms();
+
+    gl.drawElements(gl.TRIANGLES, yscaleBarIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 
     //mvPopMatrix();
 }
@@ -1299,6 +1570,20 @@ function drawOrangeMarker() {
 
     //mvPopMatrix();
 }
+function drawYellowMarker() {
+    //mvPushMatrix();
+
+    mat4.translate(mvMatrix, [0.0, 0.0, 0.0]);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, ymarkerVertexPositionBuffer);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, ymarkerVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+    setMatrixUniforms();
+
+    gl.drawArrays(gl.LINES, 0, ymarkerVertexPositionBuffer.numItems);
+
+    //mvPopMatrix();
+}
 function drawGreenMarker() {
     //mvPushMatrix();
 
@@ -1317,7 +1602,7 @@ function drawGreenMarker() {
 function drawDial() {
     //mvPushMatrix();
 
-    mat4.translate(mvMatrix, [dialX*scaleBarWidth/planeGridX-scaleBarWidth/2, scaleBarHeight-0.017, 0.001]);
+    mat4.translate(mvMatrix, [dialX*scaleBarWidth/(planeGridX-1)-scaleBarWidth/2, scaleBarHeight-0.017, 0.001]);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, dialVertexPositionBuffer);
     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, dialVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -1353,17 +1638,21 @@ function drawScene() {
 
     drawRedScaleBar();
     drawOrangeScaleBar();
+    drawYellowScaleBar();
     drawGreenScaleBar();
 
     lighting = false;
     drawRedMarker();
     drawOrangeMarker();
     drawGreenMarker();
+    drawYellowMarker();
     lighting = true;
 
     drawDial();
 }
 
+var oldBallTravel = 0;
+var startSimulate = false;
 
 function animate() {
     var timeNow = new Date().getTime();
@@ -1376,23 +1665,63 @@ function animate() {
         ballLocationIndexX = Math.floor(ballRelativeX/(planeLengthX / planeGridX)+0.01);
         ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/(planeLengthZ / planeGridZ)-0.01));
 
-        if (idleTick > 1) {
+        if (idleTick > 1 && startSimulate) {
+
+            sec += 1;
+            slids++;
+            if (sec == 1 || sec == 2) {
+                if (age < 60) {
+                    slidu = slidu == 1 ? 0 : 1;
+                    slidz = slidz == 0 ? planeLengthZ/planeGridZ : 0;
+
+                    if (sec == 1) {
+                        age = parseInt(age)+1;
+                        document.getElementById("age").value = age.toFixed(0);
+                    }
+                }
+                else {
+                    startSimulate = false;
+                }   
+            }
+            if (sec == 2) {
+                if (age < 60) {
+                    aged++;    
+                    // console.log(slids);
+
+                    age = parseInt(age)+1;
+                    document.getElementById("age").value = age.toFixed(0);    
+
+                    if (dialX > 0.0 && bmi < 45.0) {
+                        bmi = orgbmi-ballTravel*0.1;
+                        // console.log(bmi);
+                        document.getElementById("bmi").value = bmi.toFixed(1); 
+
+                        // console.log(ballTravel%5);
+
+                        dialX += (ballTravel-oldBallTravel)/10.0;
+                        // console.log(ballTravel);
+                        // console.log(oldBallTravel);
+
+                        oldBallTravel = ballTravel;
+
+                        ballTravel = 0;
+                    }
+
+                }       
+                else {
+                    startSimulate = false;
+                }
+
+                sec = 0; 
+            }
 
             if (ballLocationIndexX > 0 && ballLocationIndexZ == 1) {
-                if (trenchDepths[ballLocationIndexX] < 8) {
+                if (trenchDepths[ballLocationIndexX] < 10) {
 
                     trenchLocations[ballLocationIndexX-1] = 1;
                     trenchLocations[ballLocationIndexX] = 1;
 
                     trenchDepths[ballLocationIndexX] += 1;
-
-                    // ballRelativeY += trenchDepthScale*Math.cos(Math.PI); 
-
-                    // ballRelativeY = planeVertices[ballLocationIndexZ*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+1];   
-
-                    // if (ballLocationIndexZ < 15) {
-                    //     ballRelativeY += trenchDepthScale*Math.cos(Math.PI);     
-                    // }
                 }
             }
 
@@ -1402,8 +1731,10 @@ function animate() {
     lastTime = timeNow;
 }
 
+var request;
+
 function tick() {
-    requestAnimFrame(tick);
+    request = requestAnimFrame(tick);
 
     drawScene();
     animate();
@@ -1423,7 +1754,7 @@ function webGLStart() {
     document.onmouseup = handleMouseUp;
     document.onmousemove = handleMouseMove;
 
-    document.onkeydown = handleKeyDown;
+    // document.onkeydown = handleKeyDown;
 
     rAngle = 60;
     mat4.rotate(mvRotationMatrix, degToRad(rAngle / 10), [1, 0, 0]);
@@ -1432,12 +1763,38 @@ function webGLStart() {
     ballRelativeZ = 0 - planeLengthZ / planeGridZ;
     ballRelativeY = ballRelativeX * ballRelativeX / 8 + ballRelativeZ * ballRelativeZ / 25;
 
-    bmi = document.getElementById("bmi").value;
+    // bmi = document.getElementById("bmi").value;
+    // age = document.getElementById("age").value;
 
-    for (var i = 0; i < planeGridX; i++) {
-        trenchLocations[i] = 0;
-        trenchDepths[i] = 0;
-    }
+    // if (parseFloat(bmi) < 19.0) {
+    //     bmi = 19.0;
+    //     dialX = planeGridX;
+    //     ballRelativeX += planeGridX * planeLengthX / planeGridX;
+    // }
+    // else if (parseFloat(bmi) > 45.0) {
+    //     bmi = 45.0;
+    //     dialX = 0.0;
+    // }
+    // else {
+    //     ballRelativeX += (45.0 - parseFloat(bmi)) * planeLengthX / planeGridX;
+    // }
+
+    // orgbmi = bmi;
+
+    // for (var i = 0; i < planeGridX; i++) {
+    //     trenchLocations[i] = 0;
+    //     trenchDepths[i] = 0;
+    // }
+
+    // for (var i = 0; i < planeGridX-1; i++) {
+    //     tDepths.push(trenchDepths[i+1]);
+    //     for (var j = 1; j < trenchGrid/trenchWidth; j++) {
+    //         tDepths.push(0);
+    //     }
+    // }
+    // for (var j = 0; j < trenchGrid/trenchWidth; j++) {
+    //     tDepths.push(0);
+    // }
 
     // var u = 0;
     // for(var z = 0.0; z > -1*planeLengthZ; z -= planeLengthZ / planeGridZ) {
@@ -1449,15 +1806,80 @@ function webGLStart() {
     tick();
 }
 
+function simulate() {
+
+    ballRelativeX = planeLengthX / planeGridX;
+    ballRelativeZ = 0 - planeLengthZ / planeGridZ;
+    ballRelativeY = ballRelativeX * ballRelativeX / 8 + ballRelativeZ * ballRelativeZ / 25;
+
+    for (var i = 0; i < planeGridX; i++) {
+        trenchLocations[i] = 0;
+        trenchDepths[i] = 0;
+    }
+
+    startSimulate = true;
+    idleTick = 0;
+    lastTime = 0;
+    ballTravel = 0;
+    oldBallTravel = 0;
+    dialX = 0.0;
+    aged = 0;
+    sec = 0;
+    age = 20;
+    slids = 0;
+    slidu = 1;
+    slidz = planeLengthZ / planeGridZ;
+    document.getElementById("age").value = age.toFixed(0);
+    bmi = document.getElementById("bmi").value;
+    bmi = parseFloat(Math.floor(bmi));
+    if (bmi < 19.0) {
+        bmi = 19.0;
+        dialX += 26.0;
+        ballRelativeX += dialX * planeLengthX / planeGridX;
+    }
+    else if (bmi > 45.0) {
+        bmi = 45.0;
+    }
+    else {
+        dialX += 45.0-bmi;
+        ballRelativeX += dialX * planeLengthX / planeGridX;
+    }
+
+    ballLocationIndexX = Math.floor(ballRelativeX/(planeLengthX / planeGridX)+0.01);
+    ballLocationIndexZ = Math.abs(Math.ceil(ballRelativeZ/(planeLengthZ / planeGridZ)-0.01));
+
+    ballRelativeY = planeVertices[ballLocationIndexZ*planeGridX*trenchGrid/trenchWidth*4*3+ballLocationIndexX*trenchGrid/trenchWidth*4*3+ballTravel*4*3+1];  
+
+    // console.log(bmi);
+    document.getElementById('bmi').value = bmi.toFixed(1);
+    orgbmi = bmi;
+
+    tick();
+}
+
+function terminate() {
+    cancelRequestAnimFrame(request);
+    startSimulate = false;
+}
+
+window.cancelRequestAnimFrame = (function() {
+    return  window.cancelAnimationFrame ||
+            window.webkitCancelRequestAnimationFrame ||
+            window.mozCancelRequestAnimationFrame ||
+            window.oCancelRequestAnimationFrame ||
+            window.msCancelRequestAnimationFrame ||
+            clearTimeout
+})();
+
 </script>
 
 </head>
 
 <body onload="webGLStart();">
-<p style="text-align: center;"><b>mouse hold and drag</b> - rotate the scene<br><b>'r'</b> - reset the ball at the front<br><b>left, right, up, down arrows</b> - move the ball on the plane</p>
+<p style="text-align: center;"><b>mouse hold and drag</b> - rotate the scene<br><b>'g'</b> - change the color of the plane, <b>'b'</b> - change the color of the ball<br><b>left, right, up, down arrows</b> - move the ball on the plane</p>
 <canvas id="myCanvas" style="padding: 0; margin: auto; display: block;" width="1200" height="600"></canvas>
 <table style="border: 0; padding: 10px; margin: auto;">
-<tr><td><b>BMI: </b><input type="text" id="bmi" value="51.0" disabled style="text-align: center;" /></tr>
+<tr style="text-align: center;"><td><b>AGE: </b><input type="text" id="age" value="20" disabled /><td width = "10%" style="visibility: hidden;"><td><b>BMI: </b><input type="text" id="bmi" value="45.0" /><td width = "10%" style="visibility: hidden;"><td><button onclick="simulate()">Start</button></td><td width = "5%" style="visibility: hidden;"><td><button onclick="terminate()">Stop</button></td></tr>
 </table>
 </body>
 
